@@ -1,200 +1,325 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
-<title>AR Design Editor – Final Base</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GradeBoost - AI Assignment Assistant</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
 
-<style>
-html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui}
-canvas{position:fixed;inset:0;z-index:1}
+    <style>
+        :root {
+            --primary: #4f46e5; /* Indigo-600 */
+            --paper: #ffffff;
+        }
+        
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #f3f4f6;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
 
-#ui{position:fixed;inset:0;z-index:10;color:#fff;pointer-events:auto}
-.glass{background:rgba(20,20,20,.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1)}
+        /* Document Typography */
+        .prose-content {
+            font-family: 'Merriweather', serif;
+            color: #1f2937;
+            line-height: 1.8;
+        }
+        .prose-content h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 1rem; color: #111827; }
+        .prose-content h2 { font-size: 1.4rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #374151; }
+        .prose-content p { margin-bottom: 1rem; }
+        
+        /* Glassmorphism Lock Overlay */
+        .glass-lock {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+        }
 
-#hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:14px;font-size:13px}
+        /* Gradient Blur for Text */
+        .blur-gradient {
+            mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+            -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
+        }
 
-#toolbar{position:absolute;bottom:16px;width:100%;display:flex;justify-content:center;gap:8px}
-.tool{padding:10px 14px;border-radius:14px;cursor:pointer}
-.tool.active{background:#00e5ff;color:#000}
+        /* Floating Animation for Trust Badges */
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
+        }
+        .animate-float { animation: float 3s ease-in-out infinite; }
 
-.panel{position:absolute;top:60px;bottom:80px;width:220px;padding:10px;overflow:auto}
-#inspector{left:10px}
-#hierarchy{right:10px}
-
-.item{padding:6px;border-radius:8px;cursor:pointer;font-size:13px}
-.item.active{background:#00e5ff;color:#000}
-
-input,select,button{width:100%;margin-bottom:6px;background:#111;color:#fff;border:1px solid #333;border-radius:6px;padding:6px}
-button{cursor:pointer}
-
-#ar-start-btn{position:fixed!important;left:50%!important;bottom:110px!important;transform:translateX(-50%);z-index:20!important}
-</style>
-
-<script type="importmap">
-{
- "imports":{
-  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
- }
-}
-</script>
+        /* Loader */
+        .typing-indicator span {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            background-color: #fff;
+            border-radius: 50%;
+            animation: typing 1.4s infinite ease-in-out both;
+            margin: 0 2px;
+        }
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes typing {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+    </style>
 </head>
+<body class="antialiased text-gray-800">
 
-<body>
+    <nav class="bg-white/90 backdrop-blur-md border-b fixed w-full z-50 top-0">
+        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                        <i class="fa-solid fa-feather-pointed"></i>
+                    </div>
+                    <span class="font-bold text-xl tracking-tight text-gray-900">GradeBoost</span>
+                </div>
+                
+                <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-500">
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-check-circle text-green-500"></i> Plagiarism Free</span>
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-bolt text-yellow-500"></i> Instant AI</span>
+                    <span class="flex items-center gap-1"><i class="fa-solid fa-lock text-gray-400"></i> No Login</span>
+                </div>
+            </div>
+        </div>
+    </nav>
 
-<div id="ui">
- <div id="hint" class="glass">Start AR → Add or Select objects</div>
+    <main class="pt-24 pb-12 px-4">
+        
+        <div id="view-input" class="max-w-2xl mx-auto transition-all duration-500">
+            
+            <div class="text-center mb-10">
+                <span class="inline-block py-1 px-3 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold tracking-wide mb-3 animate-float">
+                    🚀 TRUSTED BY 10,000+ STUDENTS
+                </span>
+                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                    Assignments, <span class="text-indigo-600">Done in Seconds.</span>
+                </h1>
+                <p class="text-lg text-gray-600 max-w-lg mx-auto">
+                    Enter your topic and let our advanced AI write a perfectly structured, academic-grade assignment for you.
+                </p>
+            </div>
 
- <div id="inspector" class="panel glass">
-  <h4>Inspector</h4>
-  <div id="props"></div>
- </div>
+            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
+                <div class="p-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div> <form id="generator-form" class="p-6 md:p-8 space-y-6">
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div class="space-y-2">
+                            <label class="text-sm font-semibold text-gray-700">Subject</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-book absolute left-3 top-3.5 text-gray-400"></i>
+                                <select id="subject" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none appearance-none" required>
+                                    <option value="" disabled selected>Select Subject</option>
+                                    <option value="English Literature">English Literature</option>
+                                    <option value="History">History</option>
+                                    <option value="Business Management">Business / MBA</option>
+                                    <option value="Computer Science">Computer Science</option>
+                                    <option value="Psychology">Psychology</option>
+                                    <option value="Economics">Economics</option>
+                                    <option value="Sociology">Sociology</option>
+                                </select>
+                                <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-xs text-gray-400 pointer-events-none"></i>
+                            </div>
+                        </div>
 
- <div id="hierarchy" class="panel glass">
-  <h4>Hierarchy</h4>
-  <div id="list"></div>
- </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-semibold text-gray-700">Academic Level</label>
+                            <div class="relative">
+                                <i class="fa-solid fa-graduation-cap absolute left-3 top-3.5 text-gray-400"></i>
+                                <select id="level" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none appearance-none">
+                                    <option value="High School">High School</option>
+                                    <option value="College (Undergrad)">College (Undergrad)</option>
+                                    <option value="University (Masters)">University (Masters)</option>
+                                </select>
+                                <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-xs text-gray-400 pointer-events-none"></i>
+                            </div>
+                        </div>
+                    </div>
 
- <div id="toolbar">
-  <div class="tool glass active" data-add="cube">Cube</div>
-  <div class="tool glass" data-add="sphere">Sphere</div>
-  <div class="tool glass" data-add="cylinder">Cylinder</div>
-  <div class="tool glass" data-add="plane">Plane</div>
-  <div class="tool glass" data-add="text">Text</div>
- </div>
-</div>
+                    <div class="space-y-2">
+                        <label class="text-sm font-semibold text-gray-700">Assignment Topic / Question</label>
+                        <div class="relative">
+                            <textarea id="topic" rows="3" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none resize-none" placeholder="e.g. The impact of Artificial Intelligence on job markets in 2030..." required minlength="10"></textarea>
+                            <div class="absolute bottom-3 right-3 text-xs text-gray-400">Min 10 chars</div>
+                        </div>
+                    </div>
 
-<script type="module">
-import * as THREE from 'three';
-import { ARButton } from 'three/addons/webxr/ARButton.js';
+                    <div class="flex items-center gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Word Count</label>
+                            <select id="words" class="w-full bg-transparent font-semibold text-gray-800 outline-none mt-1 cursor-pointer">
+                                <option value="500">Short (~500 Words)</option>
+                                <option value="1000" selected>Standard (~1000 Words)</option>
+                                <option value="2000">Long (~2000 Words)</option>
+                            </select>
+                        </div>
+                        <div class="w-px h-8 bg-indigo-200"></div>
+                        <div class="flex-1">
+                            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Style</label>
+                            <div class="font-semibold text-gray-800 mt-1">Academic Formal</div>
+                        </div>
+                    </div>
 
-/* ===================== PUB SUB ===================== */
-const Bus={e:{},on(k,f){(this.e[k]??=[]).push(f)},emit(k,d){(this.e[k]||[]).forEach(f=>f(d))}};
+                    <button type="submit" id="generate-btn" class="group w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3">
+                        <span class="text-lg">Generate Assignment</span>
+                        <i class="fa-solid fa-wand-magic-sparkles group-hover:rotate-12 transition-transform"></i>
+                    </button>
 
-/* ===================== STATE ===================== */
-const State={mode:'add',set(m){this.mode=m}};
+                    <p class="text-center text-xs text-gray-400">
+                        <i class="fa-solid fa-lock"></i> No signup required. 100% Private.
+                    </p>
+                </form>
+            </div>
+        </div>
 
-/* ===================== MODEL ===================== */
-const Model={
- objs:[],sel:null,
- add(o){this.objs.push(o);Bus.emit('update')},
- select(id){this.sel=id;Bus.emit('select')},
- getSel(){return this.objs.find(o=>o.id===this.sel)}
-};
+        <div id="view-loading" class="hidden fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center">
+            <div class="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6 relative">
+                <div class="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
+                <div class="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <i class="fa-solid fa-robot text-3xl text-indigo-600"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Analyzing Topic...</h2>
+            <p id="loading-text" class="text-gray-500 animate-pulse">Consulting academic databases</p>
+        </div>
 
-/* ===================== AR VIEW ===================== */
-const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,20);
-const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-renderer.xr.enabled=true;
-renderer.domElement.style.pointerEvents='none';
-document.body.appendChild(renderer.domElement);
+        <div id="view-result" class="hidden max-w-4xl mx-auto">
+            
+            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+                <button onclick="location.reload()" class="text-gray-500 hover:text-gray-800 font-medium text-sm flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-white border flex items-center justify-center shadow-sm">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </div>
+                    Start Over
+                </button>
+                <div class="flex items-center gap-2 text-sm bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-medium">
+                    <span class="relative flex h-2 w-2">
+                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    Assignment Ready
+                </div>
+            </div>
 
-scene.add(new THREE.HemisphereLight(0xffffff,0xbbbbff,1.5));
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                
+                <div class="lg:col-span-2">
+                    <div class="bg-white rounded-xl shadow-xl border border-gray-200 min-h-[600px] relative overflow-hidden">
+                        
+                        <div class="h-2 bg-gray-100 border-b flex items-center px-2 gap-1">
+                            <div class="w-2 h-2 rounded-full bg-red-400"></div>
+                            <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+                            <div class="w-2 h-2 rounded-full bg-green-400"></div>
+                        </div>
 
-const reticle=new THREE.Mesh(
- new THREE.RingGeometry(.12,.16,32).rotateX(-Math.PI/2),
- new THREE.MeshBasicMaterial({color:0x00ff88})
-);
-reticle.visible=false;
-scene.add(reticle);
+                        <div class="p-8 md:p-12">
+                            <div id="document-content" class="prose-content blur-gradient select-none">
+                                </div>
+                        </div>
 
-const arBtn=ARButton.createButton(renderer,{
- requiredFeatures:['hit-test','dom-overlay'],
- domOverlay:{root:document.getElementById('ui')}
-});
-arBtn.id='ar-start-btn';
-document.body.appendChild(arBtn);
-renderer.xr.addEventListener('sessionstart',()=>arBtn.style.display='none');
+                        <div id="lock-screen" class="absolute inset-x-0 bottom-0 h-[400px] glass-lock flex flex-col justify-center items-center text-center p-6 z-10">
+                            
+                            <div class="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center mb-4 text-indigo-600">
+                                <i class="fa-solid fa-lock text-2xl"></i>
+                            </div>
 
-const meshes=new Map();
+                            <h3 class="text-2xl font-bold text-gray-900 mb-2">Unlock Full Assignment</h3>
+                            <p class="text-gray-600 mb-6 max-w-sm mx-auto">
+                                Get instant access to the full content, conclusion, references, and downloadable files.
+                            </p>
 
-/* ===================== OBJECT FACTORY ===================== */
-function makeMesh(o){
- let g;
- if(o.type==='cube')g=new THREE.BoxGeometry(.25,.25,.25);
- if(o.type==='sphere')g=new THREE.SphereGeometry(.15,32,32);
- if(o.type==='cylinder')g=new THREE.CylinderGeometry(.12,.12,.25,32);
- if(o.type==='plane')g=new THREE.PlaneGeometry(.3,.3);
- if(o.type==='text'){
-  const c=document.createElement('canvas');c.width=512;c.height=256;
-  const x=c.getContext('2d');x.fillStyle='#fff';x.font='48px sans-serif';x.fillText(o.text,40,140);
-  const t=new THREE.CanvasTexture(c);
-  g=new THREE.PlaneGeometry(.4,.2);
-  return new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:t,transparent:true}));
- }
- return new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:o.color}));
-}
+                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 mb-6">
+                                <div class="text-left">
+                                    <div class="text-xs text-gray-500 uppercase font-bold">Total Price</div>
+                                    <div class="flex items-baseline gap-2">
+                                        <span class="text-2xl font-bold text-gray-900">₹49</span>
+                                        <span class="text-sm text-gray-400 line-through">₹199</span>
+                                    </div>
+                                </div>
+                                <div class="h-8 w-px bg-gray-200"></div>
+                                <div class="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded">
+                                    75% OFF TODAY
+                                </div>
+                            </div>
 
-/* ===================== SYNC ===================== */
-Bus.on('update',()=>{
- Model.objs.forEach(o=>{
-  if(!meshes.has(o.id)){
-   const m=makeMesh(o);
-   scene.add(m);
-   meshes.set(o.id,m);
-  }
-  const m=meshes.get(o.id);
-  m.position.set(o.p.x,o.p.y,o.p.z);
-  m.scale.set(o.s,o.s,o.s);
-  m.rotation.y=o.r;
- });
- renderUI();
-});
+                            <button onclick="startPayment()" class="w-full max-w-xs bg-black text-white hover:bg-gray-800 font-bold py-3.5 rounded-xl shadow-lg transition-all transform hover:-translate-y-1 flex justify-center items-center gap-3">
+                                <span>Unlock Now</span>
+                                <i class="fa-solid fa-arrow-right"></i>
+                            </button>
+                            
+                            <div class="mt-4 flex items-center justify-center gap-4 opacity-60 grayscale hover:grayscale-0 transition-all">
+                                <img src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" alt="Razorpay" class="h-5">
+                                <span class="text-xs text-gray-500 border-l pl-4">100% Secure Payment</span>
+                            </div>
+                        </div>
 
-/* ===================== UI ===================== */
-function renderUI(){
- const list=document.getElementById('list');
- const props=document.getElementById('props');
- list.innerHTML='';props.innerHTML='';
- Model.objs.forEach(o=>{
-  const d=document.createElement('div');
-  d.className='item'+(o.id===Model.sel?' active':'');
-  d.textContent=o.type;
-  d.onclick=()=>Model.select(o.id);
-  list.appendChild(d);
- });
- const o=Model.getSel();
- if(!o)return;
- props.innerHTML=`
- <label>Scale</label><input type="range" min="0.1" max="2" step="0.1" value="${o.s}" oninput="window.edit('s',this.value)">
- <label>Rotate</label><input type="range" min="0" max="6.28" step="0.1" value="${o.r}" oninput="window.edit('r',this.value)">
- ${o.type==='text'?`<label>Text</label><input value="${o.text}" oninput="window.edit('text',this.value)">`:''}
- `;
-}
-window.edit=(k,v)=>{const o=Model.getSel();o[k]=k==='text'?v:parseFloat(v);Bus.emit('update')};
+                    </div>
+                </div>
 
-/* ===================== INPUT ===================== */
-window.addEventListener('pointerdown',()=>{
- if(!reticle.visible)return;
- const o={id:crypto.randomUUID(),type:State.mode,p:{x:reticle.position.x,y:reticle.position.y+.05,z:reticle.position.z},s:1,r:0,color:0x00e5ff,text:'Text'};
- Model.add(o);Model.select(o.id);
-});
+                <div class="lg:col-span-1">
+                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
+                        <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
+                            <i class="fa-solid fa-download text-indigo-600"></i> Downloads
+                        </h3>
+                        
+                        <div id="download-zone-locked">
+                            <div class="space-y-3 opacity-50 pointer-events-none">
+                                <button class="w-full border border-gray-200 rounded-lg p-3 flex items-center justify-between bg-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fa-regular fa-file-pdf text-red-500 text-lg"></i>
+                                        <span class="text-sm font-medium">Download PDF</span>
+                                    </div>
+                                    <i class="fa-solid fa-lock text-xs text-gray-400"></i>
+                                </button>
+                                <button class="w-full border border-gray-200 rounded-lg p-3 flex items-center justify-between bg-gray-50">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fa-regular fa-file-word text-blue-500 text-lg"></i>
+                                        <span class="text-sm font-medium">Download Word</span>
+                                    </div>
+                                    <i class="fa-solid fa-lock text-xs text-gray-400"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-gray-400 mt-3 text-center">Downloads enable after payment</p>
+                        </div>
 
-/* ===================== TOOLBAR ===================== */
-document.querySelectorAll('.tool').forEach(b=>{
- b.onclick=()=>{document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active'));b.classList.add('active');State.mode=b.dataset.add};
-});
+                        <div id="download-zone-unlocked" class="hidden space-y-3 animate-pulse">
+                            <button onclick="downloadPDF()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg p-3 flex items-center justify-between transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-regular fa-file-pdf text-xl"></i>
+                                    <span class="font-medium">Download PDF</span>
+                                </div>
+                                <i class="fa-solid fa-download"></i>
+                            </button>
+                            <button onclick="downloadDoc()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg p-3 flex items-center justify-between transition-colors">
+                                <div class="flex items-center gap-3">
+                                    <i class="fa-regular fa-file-word text-xl"></i>
+                                    <span class="font-medium">Download Word</span>
+                                </div>
+                                <i class="fa-solid fa-download"></i>
+                            </button>
+                            
+                            <div class="mt-6 bg-green-50 p-3 rounded-lg border border-green-100 text-center">
+                                <i class="fa-solid fa-circle-check text-green-500 text-2xl mb-1"></i>
+                                <p class="text-sm font-bold text-green-800">Payment Successful</p>
+                                <p class="text-xs text-green-600">Your content is fully unlocked.</p>
+                            </div>
+                        </div>
 
-/* ===================== HIT TEST LOOP ===================== */
-let hit=null,req=false;
-renderer.setAnimationLoop((t,f)=>{
- if(f){
-  const s=renderer.xr.getSession();
-  if(!req){s.requestReferenceSpace('viewer').then(sp=>s.requestHitTestSource({space:sp}).then(h=>hit=h));req=true}
-  if(hit){
-   const r=f.getHitTestResults(hit);
-   if(r.length){
-    const p=r[0].getPose(renderer.xr.getReferenceSpace());
-    reticle.visible=true;
-    reticle.position.set(p.transform.position.x,p.transform.position.y,p.transform.position.z);
-   }
-  }
- }
- renderer.render(scene,camera);
-});
-</script>
-</body>
-</html>
+                    </div>
+
+                    <div class="mt-6 bg-indigo-900 rounded-xl p-6 text-white text-center">
+                        <div class="text-3xl font-bold mb-1">4.9/5</div>
+                        <div class="flex justify-center gap-1 text-yellow-400 text-xs mb-3">
+                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
