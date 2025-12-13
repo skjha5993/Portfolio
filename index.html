@@ -1,70 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no" />
-<title>AR Editor – StateMachine MVC PubSub</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<title>AR Design Editor – Final Base</title>
 
 <style>
 html,body{margin:0;height:100%;overflow:hidden;background:#000;font-family:system-ui}
 canvas{position:fixed;inset:0;z-index:1}
 
-#ui{
- position:fixed;inset:0;z-index:1000;
- pointer-events:auto;color:#fff
-}
+#ui{position:fixed;inset:0;z-index:10;color:#fff;pointer-events:auto}
+.glass{background:rgba(20,20,20,.7);backdrop-filter:blur(12px);border:1px solid rgba(255,255,255,.1)}
 
-.glass{
- background:rgba(20,20,20,.7);
- backdrop-filter:blur(12px);
- border:1px solid rgba(255,255,255,.1);
-}
+#hint{position:absolute;top:12px;left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:14px;font-size:13px}
 
-#hint{
- position:absolute;top:12px;left:50%;
- transform:translateX(-50%);
- padding:8px 16px;border-radius:14px;
- font-size:13px;pointer-events:none
-}
-
-#toolbar{
- position:absolute;bottom:16px;width:100%;
- display:flex;justify-content:center;gap:8px
-}
-.tool{
- padding:10px 14px;border-radius:14px;
- cursor:pointer
-}
+#toolbar{position:absolute;bottom:16px;width:100%;display:flex;justify-content:center;gap:8px}
+.tool{padding:10px 14px;border-radius:14px;cursor:pointer}
 .tool.active{background:#00e5ff;color:#000}
 
-.panel{
- position:absolute;top:60px;bottom:80px;
- width:220px;padding:10px;overflow:auto
-}
-#left{left:10px}
-#right{right:10px}
+.panel{position:absolute;top:60px;bottom:80px;width:220px;padding:10px;overflow:auto}
+#inspector{left:10px}
+#hierarchy{right:10px}
 
-.item{
- padding:6px;border-radius:8px;
- cursor:pointer;font-size:13px
-}
+.item{padding:6px;border-radius:8px;cursor:pointer;font-size:13px}
 .item.active{background:#00e5ff;color:#000}
 
-input,button{
- width:100%;margin-bottom:6px;
- background:#111;color:#fff;
- border:1px solid #333;border-radius:6px;
- padding:6px
-}
+input,select,button{width:100%;margin-bottom:6px;background:#111;color:#fff;border:1px solid #333;border-radius:6px;padding:6px}
 button{cursor:pointer}
 
-#ar-start-btn{
- position:fixed!important;
- left:50%!important;
- bottom:110px!important;
- transform:translateX(-50%);
- z-index:2000!important;
-}
+#ar-start-btn{position:fixed!important;left:50%!important;bottom:110px!important;transform:translateX(-50%);z-index:20!important}
 </style>
 
 <script type="importmap">
@@ -79,25 +43,25 @@ button{cursor:pointer}
 
 <body>
 
-<!-- UI VIEW -->
 <div id="ui">
- <div id="hint" class="glass">Start AR → Select a tool</div>
+ <div id="hint" class="glass">Start AR → Add or Select objects</div>
 
- <div id="left" class="panel glass">
-  <h4>Properties</h4>
-  <div id="config"></div>
+ <div id="inspector" class="panel glass">
+  <h4>Inspector</h4>
+  <div id="props"></div>
  </div>
 
- <div id="right" class="panel glass">
+ <div id="hierarchy" class="panel glass">
   <h4>Hierarchy</h4>
-  <div id="hierarchy"></div>
+  <div id="list"></div>
  </div>
 
  <div id="toolbar">
-  <div class="tool glass active" data-tool="ADD_CUBE">Cube</div>
-  <div class="tool glass" data-tool="ADD_SPHERE">Sphere</div>
-  <div class="tool glass" data-tool="SELECT">Select</div>
-  <div class="tool glass" data-tool="MOVE">Move</div>
+  <div class="tool glass active" data-add="cube">Cube</div>
+  <div class="tool glass" data-add="sphere">Sphere</div>
+  <div class="tool glass" data-add="cylinder">Cylinder</div>
+  <div class="tool glass" data-add="plane">Plane</div>
+  <div class="tool glass" data-add="text">Text</div>
  </div>
 </div>
 
@@ -105,216 +69,131 @@ button{cursor:pointer}
 import * as THREE from 'three';
 import { ARButton } from 'three/addons/webxr/ARButton.js';
 
-////////////////////////////////////////////////////////////////
-// EVENT BUS (PUB-SUB)
-////////////////////////////////////////////////////////////////
-const EventBus={
- events:{},
- on(e,fn){(this.events[e]??=[]).push(fn)},
- emit(e,d){(this.events[e]||[]).forEach(fn=>fn(d))}
-};
+/* ===================== PUB SUB ===================== */
+const Bus={e:{},on(k,f){(this.e[k]??=[]).push(f)},emit(k,d){(this.e[k]||[]).forEach(f=>f(d))}};
 
-////////////////////////////////////////////////////////////////
-// STATE MACHINE
-////////////////////////////////////////////////////////////////
-const StateMachine={
- state:'IDLE',
- set(next){
-  console.log('STATE',this.state,'→',next);
-  this.state=next;
-  EventBus.emit('STATE_CHANGED',next);
- }
-};
+/* ===================== STATE ===================== */
+const State={mode:'add',set(m){this.mode=m}};
 
-////////////////////////////////////////////////////////////////
-// MODEL (SINGLE SOURCE OF TRUTH)
-////////////////////////////////////////////////////////////////
+/* ===================== MODEL ===================== */
 const Model={
- objects:[],
- selected:null,
-
- add(obj){
-  this.objects.push(obj);
-  EventBus.emit('MODEL_UPDATED');
- },
-
- select(id){
-  this.selected=id;
-  EventBus.emit('SELECTION_CHANGED',id);
- },
-
- update(id,patch){
-  const o=this.objects.find(o=>o.id===id);
-  Object.assign(o.transform,patch);
-  EventBus.emit('MODEL_UPDATED');
- }
+ objs:[],sel:null,
+ add(o){this.objs.push(o);Bus.emit('update')},
+ select(id){this.sel=id;Bus.emit('select')},
+ getSel(){return this.objs.find(o=>o.id===this.sel)}
 };
 
-////////////////////////////////////////////////////////////////
-// AR VIEW (RENDERING ONLY)
-////////////////////////////////////////////////////////////////
-const ARView=(()=>{
- const scene=new THREE.Scene();
- const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,20);
- const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
- renderer.setSize(innerWidth,innerHeight);
- renderer.xr.enabled=true;
- renderer.domElement.style.pointerEvents='none';
- document.body.appendChild(renderer.domElement);
+/* ===================== AR VIEW ===================== */
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,20);
+const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.xr.enabled=true;
+renderer.domElement.style.pointerEvents='none';
+document.body.appendChild(renderer.domElement);
 
- scene.add(new THREE.HemisphereLight(0xffffff,0xbbbbff,1.5));
+scene.add(new THREE.HemisphereLight(0xffffff,0xbbbbff,1.5));
 
- const reticle=new THREE.Mesh(
-  new THREE.RingGeometry(.12,.16,32).rotateX(-Math.PI/2),
-  new THREE.MeshBasicMaterial({color:0x00ff88})
- );
- reticle.visible=false;
- scene.add(reticle);
+const reticle=new THREE.Mesh(
+ new THREE.RingGeometry(.12,.16,32).rotateX(-Math.PI/2),
+ new THREE.MeshBasicMaterial({color:0x00ff88})
+);
+reticle.visible=false;
+scene.add(reticle);
 
- const meshes=new Map();
- const raycaster=new THREE.Raycaster();
- const pointer=new THREE.Vector2();
+const arBtn=ARButton.createButton(renderer,{
+ requiredFeatures:['hit-test','dom-overlay'],
+ domOverlay:{root:document.getElementById('ui')}
+});
+arBtn.id='ar-start-btn';
+document.body.appendChild(arBtn);
+renderer.xr.addEventListener('sessionstart',()=>arBtn.style.display='none');
 
- let hitSource=null,requested=false;
+const meshes=new Map();
 
- const arBtn=ARButton.createButton(renderer,{
-  requiredFeatures:['hit-test','dom-overlay'],
-  domOverlay:{root:document.getElementById('ui')}
- });
- arBtn.id='ar-start-btn';
- document.body.appendChild(arBtn);
-
- renderer.xr.addEventListener('sessionstart',()=>arBtn.style.display='none');
- renderer.xr.addEventListener('sessionend',()=>arBtn.style.display='block');
-
- EventBus.on('MODEL_UPDATED',sync);
-
- function sync(){
-  Model.objects.forEach(o=>{
-   if(!meshes.has(o.id)){
-    let geo;
-    if(o.type==='cube')geo=new THREE.BoxGeometry(.25,.25,.25);
-    if(o.type==='sphere')geo=new THREE.SphereGeometry(.15,32,32);
-    const mesh=new THREE.Mesh(
-     geo,new THREE.MeshStandardMaterial({color:0x00e5ff})
-    );
-    scene.add(mesh);
-    meshes.set(o.id,mesh);
-   }
-   const m=meshes.get(o.id);
-   m.position.set(o.transform.x,o.transform.y,o.transform.z);
-  });
+/* ===================== OBJECT FACTORY ===================== */
+function makeMesh(o){
+ let g;
+ if(o.type==='cube')g=new THREE.BoxGeometry(.25,.25,.25);
+ if(o.type==='sphere')g=new THREE.SphereGeometry(.15,32,32);
+ if(o.type==='cylinder')g=new THREE.CylinderGeometry(.12,.12,.25,32);
+ if(o.type==='plane')g=new THREE.PlaneGeometry(.3,.3);
+ if(o.type==='text'){
+  const c=document.createElement('canvas');c.width=512;c.height=256;
+  const x=c.getContext('2d');x.fillStyle='#fff';x.font='48px sans-serif';x.fillText(o.text,40,140);
+  const t=new THREE.CanvasTexture(c);
+  g=new THREE.PlaneGeometry(.4,.2);
+  return new THREE.Mesh(g,new THREE.MeshBasicMaterial({map:t,transparent:true}));
  }
+ return new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:o.color}));
+}
 
- window.addEventListener('pointerdown',e=>{
-  pointer.x=(e.clientX/innerWidth)*2-1;
-  pointer.y=-(e.clientY/innerHeight)*2+1;
-  raycaster.setFromCamera(pointer,camera);
-  const hits=raycaster.intersectObjects([...meshes.values()]);
-  if(hits.length){
-   const id=[...meshes.entries()].find(([_,m])=>m===hits[0].object)[0];
-   EventBus.emit('OBJECT_HIT',id);
+/* ===================== SYNC ===================== */
+Bus.on('update',()=>{
+ Model.objs.forEach(o=>{
+  if(!meshes.has(o.id)){
+   const m=makeMesh(o);
+   scene.add(m);
+   meshes.set(o.id,m);
   }
+  const m=meshes.get(o.id);
+  m.position.set(o.p.x,o.p.y,o.p.z);
+  m.scale.set(o.s,o.s,o.s);
+  m.rotation.y=o.r;
  });
-
- renderer.setAnimationLoop((t,frame)=>{
-  if(frame){
-   const s=renderer.xr.getSession();
-   if(!requested){
-    s.requestReferenceSpace('viewer').then(sp=>{
-     s.requestHitTestSource({space:sp}).then(src=>hitSource=src);
-    });
-    requested=true;
-   }
-   if(hitSource){
-    const hits=frame.getHitTestResults(hitSource);
-    if(hits.length){
-     const p=hits[0].getPose(renderer.xr.getReferenceSpace());
-     reticle.visible=true;
-     reticle.position.set(p.transform.position.x,p.transform.position.y,p.transform.position.z);
-    }
-   }
-  }
-  renderer.render(scene,camera);
- });
-
- return {reticle};
-})();
-
-////////////////////////////////////////////////////////////////
-// CONTROLLERS
-////////////////////////////////////////////////////////////////
-EventBus.on('OBJECT_HIT',id=>{
- if(StateMachine.state==='SELECT'){
-  Model.select(id);
- }
+ renderUI();
 });
 
-EventBus.on('ADD_OBJECT',type=>{
- if(!ARView.reticle.visible)return;
- Model.add({
-  id:crypto.randomUUID(),
-  type,
-  transform:{
-   x:ARView.reticle.position.x,
-   y:ARView.reticle.position.y+.05,
-   z:ARView.reticle.position.z
-  }
+/* ===================== UI ===================== */
+function renderUI(){
+ const list=document.getElementById('list');
+ const props=document.getElementById('props');
+ list.innerHTML='';props.innerHTML='';
+ Model.objs.forEach(o=>{
+  const d=document.createElement('div');
+  d.className='item'+(o.id===Model.sel?' active':'');
+  d.textContent=o.type;
+  d.onclick=()=>Model.select(o.id);
+  list.appendChild(d);
  });
+ const o=Model.getSel();
+ if(!o)return;
+ props.innerHTML=`
+ <label>Scale</label><input type="range" min="0.1" max="2" step="0.1" value="${o.s}" oninput="window.edit('s',this.value)">
+ <label>Rotate</label><input type="range" min="0" max="6.28" step="0.1" value="${o.r}" oninput="window.edit('r',this.value)">
+ ${o.type==='text'?`<label>Text</label><input value="${o.text}" oninput="window.edit('text',this.value)">`:''}
+ `;
+}
+window.edit=(k,v)=>{const o=Model.getSel();o[k]=k==='text'?v:parseFloat(v);Bus.emit('update')};
+
+/* ===================== INPUT ===================== */
+window.addEventListener('pointerdown',()=>{
+ if(!reticle.visible)return;
+ const o={id:crypto.randomUUID(),type:State.mode,p:{x:reticle.position.x,y:reticle.position.y+.05,z:reticle.position.z},s:1,r:0,color:0x00e5ff,text:'Text'};
+ Model.add(o);Model.select(o.id);
 });
 
-////////////////////////////////////////////////////////////////
-// UI VIEW
-////////////////////////////////////////////////////////////////
-const UI=(()=>{
- const h=document.getElementById('hierarchy');
- const c=document.getElementById('config');
-
- EventBus.on('MODEL_UPDATED',renderHierarchy);
- EventBus.on('SELECTION_CHANGED',renderConfig);
-
- function renderHierarchy(){
-  h.innerHTML='';
-  Model.objects.forEach(o=>{
-   const d=document.createElement('div');
-   d.className='item'+(o.id===Model.selected?' active':'');
-   d.textContent=o.type;
-   d.onclick=()=>Model.select(o.id);
-   h.appendChild(d);
-  });
- }
-
- function renderConfig(){
-  c.innerHTML='';
-  const o=Model.objects.find(o=>o.id===Model.selected);
-  if(!o)return;
-  c.innerHTML=`
-   <label>Y Position</label>
-   <input type="range" min="0" max="2" step=".01" value="${o.transform.y}"
-    oninput="EventBus.emit('UPDATE_Y',{id:'${o.id}',y:this.value})">
-  `;
- }
-
- EventBus.on('UPDATE_Y',d=>{
-  Model.update(d.id,{y:parseFloat(d.y)});
- });
-
- return{};
-})();
-
-////////////////////////////////////////////////////////////////
-// TOOLBAR
-////////////////////////////////////////////////////////////////
+/* ===================== TOOLBAR ===================== */
 document.querySelectorAll('.tool').forEach(b=>{
- b.onclick=()=>{
-  document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active'));
-  b.classList.add('active');
-  const t=b.dataset.tool;
-  StateMachine.set(t);
-  if(t.startsWith('ADD_')){
-   EventBus.emit('ADD_OBJECT',t.replace('ADD_','').toLowerCase());
+ b.onclick=()=>{document.querySelectorAll('.tool').forEach(x=>x.classList.remove('active'));b.classList.add('active');State.mode=b.dataset.add};
+});
+
+/* ===================== HIT TEST LOOP ===================== */
+let hit=null,req=false;
+renderer.setAnimationLoop((t,f)=>{
+ if(f){
+  const s=renderer.xr.getSession();
+  if(!req){s.requestReferenceSpace('viewer').then(sp=>s.requestHitTestSource({space:sp}).then(h=>hit=h));req=true}
+  if(hit){
+   const r=f.getHitTestResults(hit);
+   if(r.length){
+    const p=r[0].getPose(renderer.xr.getReferenceSpace());
+    reticle.visible=true;
+    reticle.position.set(p.transform.position.x,p.transform.position.y,p.transform.position.z);
+   }
   }
- };
+ }
+ renderer.render(scene,camera);
 });
 </script>
 </body>
