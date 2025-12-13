@@ -1,39 +1,41 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
-<title>AR Design Studio – Fixed UI</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>AR Design Studio – DEBUGGED</title>
 
 <style>
-*{box-sizing:border-box}
-body{
+html,body{
     margin:0;
+    padding:0;
+    width:100%;
+    height:100%;
     overflow:hidden;
     background:#000;
-    font-family:system-ui,-apple-system,Segoe UI,Roboto;
+    font-family:system-ui, -apple-system, Segoe UI, Roboto;
+}
+
+/* UI ROOT — MUST BE ABOVE CANVAS */
+#ui-root{
+    position:fixed;
+    inset:0;
+    z-index:1000;
+    pointer-events:auto;
 }
 
 /* CAMERA CANVAS */
 canvas{
-    position:absolute;
+    position:fixed;
     inset:0;
     z-index:1;
 }
 
-/* UI ROOT */
-#ui{
-    position:absolute;
-    inset:0;
-    z-index:10;               /* ABOVE CAMERA */
-    pointer-events:auto;      /* ENABLE TOUCH */
-}
-
-/* GLASS */
+/* GLASS STYLE */
 .glass{
     background:rgba(20,20,20,.65);
     backdrop-filter:blur(14px);
-    border:1px solid rgba(255,255,255,.08);
+    border:1px solid rgba(255,255,255,.1);
     color:#fff;
 }
 
@@ -52,18 +54,16 @@ canvas{
 /* TOOLBAR */
 #toolbar{
     position:absolute;
-    bottom:18px;
+    bottom:20px;
     width:100%;
     display:flex;
     justify-content:center;
-    gap:8px;
-    pointer-events:auto;
+    gap:10px;
 }
 
 .tool{
-    padding:12px 14px;
+    padding:12px 16px;
     border-radius:16px;
-    font-size:14px;
     cursor:pointer;
     user-select:none;
 }
@@ -76,19 +76,19 @@ canvas{
 
 <script type="importmap">
 {
- "imports":{
-  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
-  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
- }
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
 }
 </script>
 </head>
 
 <body>
 
-<!-- UI MUST EXIST BEFORE XR BUTTON -->
-<div id="ui">
-    <div id="hint" class="glass">Move device to detect surface</div>
+<!-- UI MUST EXIST BEFORE ARButton -->
+<div id="ui-root">
+    <div id="hint" class="glass">Move phone to detect surface</div>
 
     <div id="toolbar">
         <div class="tool glass active" data-tool="add">➕ Add</div>
@@ -103,156 +103,160 @@ import * as THREE from 'three';
 import { ARButton } from 'three/addons/webxr/ARButton.js';
 
 /* ---------------- STATE ---------------- */
-const state={
- tool:'add',
- drawing:false,
- drawPts:[],
- measurePts:[]
+const state = {
+    tool: 'add',
+    drawing: false,
+    drawPoints: [],
+    measurePoints: []
 };
 
 /* ---------------- SCENE ---------------- */
-const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,20);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.01, 20);
 
-const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
-renderer.setSize(innerWidth,innerHeight);
-renderer.setPixelRatio(Math.min(devicePixelRatio,2));
-renderer.xr.enabled=true;
+const renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.xr.enabled = true;
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff,0xbbbbff,1.5));
+/* 🔑 CRITICAL FIX — ALLOW UI TOUCHES */
+renderer.domElement.style.pointerEvents = 'none';
+
+scene.add(new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1.5));
 
 /* ---------------- RETICLE ---------------- */
-const reticle=new THREE.Mesh(
- new THREE.RingGeometry(.15,.2,32).rotateX(-Math.PI/2),
- new THREE.MeshBasicMaterial({color:0x00ff88})
+const reticle = new THREE.Mesh(
+    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+    new THREE.MeshBasicMaterial({ color: 0x00ff88 })
 );
-reticle.visible=false;
+reticle.visible = false;
 scene.add(reticle);
 
-/* ---------------- XR BUTTON ---------------- */
+/* ---------------- AR BUTTON ---------------- */
 document.body.appendChild(
- ARButton.createButton(renderer,{
-  requiredFeatures:['hit-test','dom-overlay'],
-  domOverlay:{root:document.getElementById('ui')}
- })
+    ARButton.createButton(renderer, {
+        requiredFeatures: ['hit-test', 'dom-overlay'],
+        domOverlay: { root: document.getElementById('ui-root') }
+    })
 );
 
 /* ---------------- HIT TEST ---------------- */
-let hitSource=null,requested=false;
+let hitSource = null;
+let hitRequested = false;
 
-renderer.xr.addEventListener('sessionend',()=>{
- hitSource=null;
- requested=false;
+renderer.xr.addEventListener('sessionend', () => {
+    hitSource = null;
+    hitRequested = false;
 });
 
-/* ---------------- ADD OBJECT ---------------- */
-function addObject(){
- const mesh=new THREE.Mesh(
-  new THREE.BoxGeometry(.25,.25,.25),
-  new THREE.MeshStandardMaterial({color:0x00e5ff})
- );
- mesh.position.copy(reticle.position);
- mesh.position.y+=.125;
- scene.add(mesh);
+/* ---------------- TOOLS ---------------- */
+function addBox(){
+    const box = new THREE.Mesh(
+        new THREE.BoxGeometry(0.25, 0.25, 0.25),
+        new THREE.MeshStandardMaterial({ color: 0x00e5ff })
+    );
+    box.position.copy(reticle.position);
+    box.position.y += 0.125;
+    scene.add(box);
 }
 
-/* ---------------- DRAW ---------------- */
-let line=null;
+let drawLine = null;
 function startDraw(){
- state.drawPts=[];
- line=new THREE.Line(
-  new THREE.BufferGeometry(),
-  new THREE.LineBasicMaterial({color:0xff4444})
- );
- scene.add(line);
+    state.drawPoints = [];
+    drawLine = new THREE.Line(
+        new THREE.BufferGeometry(),
+        new THREE.LineBasicMaterial({ color: 0xff4444 })
+    );
+    scene.add(drawLine);
 }
 function updateDraw(){
- state.drawPts.push(reticle.position.clone());
- line.geometry.setFromPoints(state.drawPts);
+    state.drawPoints.push(reticle.position.clone());
+    drawLine.geometry.setFromPoints(state.drawPoints);
 }
-function endDraw(){ line=null; }
+function endDraw(){
+    drawLine = null;
+}
 
-/* ---------------- MEASURE ---------------- */
 function measure(){
- state.measurePts.push(reticle.position.clone());
- if(state.measurePts.length===2){
-  const [a,b]=state.measurePts;
-  alert(`Distance: ${a.distanceTo(b).toFixed(2)} meters`);
-  state.measurePts=[];
- }
+    state.measurePoints.push(reticle.position.clone());
+    if(state.measurePoints.length === 2){
+        const [a,b] = state.measurePoints;
+        alert(`Distance: ${a.distanceTo(b).toFixed(2)} meters`);
+        state.measurePoints = [];
+    }
 }
 
-/* ---------------- INPUT ---------------- */
-renderer.domElement.addEventListener('pointerdown',()=>{
- if(!reticle.visible) return;
+/* ---------------- INPUT (AR ONLY) ---------------- */
+window.addEventListener('pointerdown', () => {
+    if(!reticle.visible) return;
 
- if(state.tool==='add') addObject();
- if(state.tool==='draw'){state.drawing=true;startDraw();}
- if(state.tool==='measure') measure();
+    if(state.tool === 'add') addBox();
+    if(state.tool === 'draw'){ state.drawing = true; startDraw(); }
+    if(state.tool === 'measure') measure();
 });
 
-renderer.domElement.addEventListener('pointerup',()=>{
- if(state.drawing){
-  state.drawing=false;
-  endDraw();
- }
+window.addEventListener('pointerup', () => {
+    if(state.drawing){
+        state.drawing = false;
+        endDraw();
+    }
 });
 
 /* ---------------- UI EVENTS ---------------- */
-document.querySelectorAll('.tool').forEach(btn=>{
- btn.addEventListener('click',e=>{
-  document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
-  btn.classList.add('active');
-  state.tool=btn.dataset.tool;
+document.querySelectorAll('.tool').forEach(btn => {
+    btn.onclick = () => {
+        document.querySelectorAll('.tool').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.tool = btn.dataset.tool;
 
-  if(state.tool==='clear'){
-   scene.children
-    .filter(o=>o.isMesh||o.isLine)
-    .forEach(o=>scene.remove(o));
-   scene.add(reticle);
-  }
- });
+        if(state.tool === 'clear'){
+            scene.children
+                .filter(o => o.isMesh || o.isLine)
+                .forEach(o => scene.remove(o));
+            scene.add(reticle);
+        }
+    };
 });
 
 /* ---------------- RENDER LOOP ---------------- */
-renderer.setAnimationLoop((t,frame)=>{
- if(frame){
-  const session=renderer.xr.getSession();
-  if(!requested){
-   session.requestReferenceSpace('viewer').then(space=>{
-    session.requestHitTestSource({space}).then(src=>hitSource=src);
-   });
-   requested=true;
-  }
+renderer.setAnimationLoop((t, frame) => {
+    if(frame){
+        const session = renderer.xr.getSession();
+        if(!hitRequested){
+            session.requestReferenceSpace('viewer').then(space => {
+                session.requestHitTestSource({ space }).then(src => hitSource = src);
+            });
+            hitRequested = true;
+        }
 
-  if(hitSource){
-   const hits=frame.getHitTestResults(hitSource);
-   if(hits.length){
-    const pose=hits[0].getPose(renderer.xr.getReferenceSpace());
-    reticle.visible=true;
-    reticle.position.set(
-     pose.transform.position.x,
-     pose.transform.position.y,
-     pose.transform.position.z
-    );
-    document.getElementById('hint').innerText="Tap to interact";
-   }else{
-    reticle.visible=false;
-    document.getElementById('hint').innerText="Move to detect surface";
-   }
-  }
- }
+        if(hitSource){
+            const hits = frame.getHitTestResults(hitSource);
+            if(hits.length){
+                const pose = hits[0].getPose(renderer.xr.getReferenceSpace());
+                reticle.visible = true;
+                reticle.position.set(
+                    pose.transform.position.x,
+                    pose.transform.position.y,
+                    pose.transform.position.z
+                );
+                document.getElementById('hint').innerText = 'Tap to interact';
+            } else {
+                reticle.visible = false;
+                document.getElementById('hint').innerText = 'Move to detect surface';
+            }
+        }
+    }
 
- if(state.drawing && line) updateDraw();
- renderer.render(scene,camera);
+    if(state.drawing && drawLine) updateDraw();
+    renderer.render(scene, camera);
 });
 
 /* ---------------- RESIZE ---------------- */
-addEventListener('resize',()=>{
- camera.aspect=innerWidth/innerHeight;
- camera.updateProjectionMatrix();
- renderer.setSize(innerWidth,innerHeight);
+addEventListener('resize', () => {
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(innerWidth, innerHeight);
 });
 </script>
 
