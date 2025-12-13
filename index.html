@@ -1,64 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>AR Studio - Fixed Version</title>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
-        
-        /* FIX 1: Canvas must not block clicks */
-        canvas { 
-            display: block; 
-            width: 100% !important; 
-            height: 100% !important;
-            pointer-events: none !important; /* CRITICAL: Lets clicks pass through to UI */
-        }
-
-        /* FIX 2: UI Layer must be on top */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none; /* Background allows clicks through */
-            z-index: 1000; /* Force on top of canvas */
-            display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
-        }
-
-        /* Status Bar (To help you debug) */
-        #status-bar {
-            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
-            background: rgba(255, 0, 0, 0.8); color: white;
-            padding: 8px 16px; border-radius: 20px;
-            font-weight: bold; font-size: 14px;
-            pointer-events: none;
-        }
-        #status-bar.ready { background: rgba(0, 200, 50, 0.8); }
-
-        /* Toolbar */
-        .toolbar {
-            margin-bottom: 30px;
-            background: rgba(20, 20, 20, 0.9);
-            padding: 15px; border-radius: 30px;
-            display: flex; gap: 20px;
-            pointer-events: auto; /* Buttons must catch clicks */
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-
-        .tool-btn {
-            width: 50px; height: 50px;
-            border-radius: 50%; border: none;
-            background: #444; color: white;
-            font-size: 24px; cursor: pointer;
-        }
-        .tool-btn.active { background: #0a84ff; border: 2px solid white; }
-
-        /* AR Start Button Area */
-        #ar-btn-holder { 
-            pointer-events: auto; 
-            margin-bottom: 20px; 
-            z-index: 1001;
-        }
-    </style>
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>AR Architect Pro | Production Build</title>
+    
     <script type="importmap">
         {
             "imports": {
@@ -67,181 +13,697 @@
             }
         }
     </script>
+    
+    <style>
+        :root {
+            --primary: #007AFF;
+            --surface: rgba(20, 20, 20, 0.85);
+            --text: #ffffff;
+            --danger: #FF3B30;
+            --success: #34C759;
+        }
+
+        body { 
+            margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Canvas Layer - EPIC 1 & 2 */
+        canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+
+        /* UI Container */
+        #ui-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        /* Top Bar - EPIC 10 & 11 */
+        .top-bar {
+            padding: 16px; display: flex; justify-content: space-between; align-items: flex-start;
+            pointer-events: auto; background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, transparent 100%);
+        }
+        
+        .btn-group { display: flex; gap: 8px; }
+        
+        .btn {
+            background: var(--surface); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1); color: var(--text);
+            padding: 8px 16px; border-radius: 20px; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: transform 0.1s, background 0.2s;
+            display: flex; align-items: center; gap: 6px;
+        }
+        .btn:active { transform: scale(0.96); }
+        .btn-icon { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 50%; font-size: 20px; }
+        .btn-primary { background: var(--primary); border: none; }
+
+        /* Properties Panel - EPIC 4 & 5 */
+        #props-panel {
+            position: absolute; top: 70px; right: 16px; width: 220px;
+            background: var(--surface); backdrop-filter: blur(12px);
+            border-radius: 16px; padding: 16px; pointer-events: auto;
+            display: none; flex-direction: column; gap: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            transform-origin: top right; animation: popIn 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+
+        .prop-row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: #aaa; }
+        input[type="range"] { width: 100px; accent-color: var(--primary); }
+        .color-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-top: 4px; }
+        .color-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; }
+        .color-swatch.active { border-color: white; transform: scale(1.1); }
+
+        /* Bottom Toolbar - EPIC 3 & 6 */
+        .toolbar-container {
+            padding: 24px; display: flex; flex-direction: column; gap: 12px; align-items: center;
+            pointer-events: none; background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+        }
+        
+        .toolbar {
+            display: flex; gap: 12px; pointer-events: auto;
+            background: var(--surface); padding: 8px 16px; border-radius: 32px;
+            backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1);
+        }
+        
+        .tool-btn {
+            width: 48px; height: 48px; border-radius: 50%; border: none;
+            background: transparent; color: #888; font-size: 22px;
+            cursor: pointer; transition: all 0.2s; position: relative;
+        }
+        .tool-btn.active { color: white; background: rgba(255,255,255,0.1); }
+        .tool-btn.active::after { content: ''; position: absolute; bottom: -4px; left: 50%; transform: translateX(-50%); width: 4px; height: 4px; background: var(--primary); border-radius: 50%; }
+
+        /* Sub-Toolbar (Shape Selector) */
+        #sub-toolbar {
+            display: none; gap: 8px; pointer-events: auto;
+            background: rgba(40,40,40,0.9); padding: 6px 12px; border-radius: 20px; margin-bottom: 8px;
+        }
+        .sub-btn { font-size: 12px; padding: 6px 12px; border-radius: 12px; background: rgba(255,255,255,0.1); color: white; border: none; }
+
+        /* Toast Notifications */
+        #toast {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.8); color: white; padding: 12px 24px; border-radius: 24px;
+            font-size: 14px; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+            z-index: 9999;
+        }
+        
+        /* Modal for Text Input - EPIC 7 */
+        #text-modal {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; pointer-events: auto; z-index: 2000;
+        }
+        .modal-content { background: #222; padding: 24px; border-radius: 16px; width: 80%; max-width: 300px; text-align: center; }
+        .modal-input { width: 90%; padding: 12px; margin: 16px 0; background: #333; border: none; color: white; border-radius: 8px; font-size: 16px; }
+
+        /* AR DOM Overlay Placeholder */
+        #ar-dom-overlay { display: none; }
+    </style>
 </head>
 <body>
-    
-    <div id="ui-layer">
-        <div id="status-bar">Status: Initializing...</div>
 
-        <div class="toolbar">
-            <button class="tool-btn active" id="btn-place" onclick="setMode('place')">📦</button>
-            <button class="tool-btn" id="btn-color" onclick="changeColor()">🎨</button>
-            <button class="tool-btn" id="btn-undo" onclick="undo()">↩️</button>
+    <div id="ui-overlay">
+        <div class="top-bar">
+            <div class="btn-group">
+                <button class="btn btn-icon" onclick="app.io.undo()" title="Undo">↩️</button>
+                <button class="btn btn-icon" onclick="app.io.deleteSelection()" style="color:var(--danger)" title="Delete">🗑️</button>
+            </div>
+            <div class="btn-group">
+                <button class="btn" onclick="app.persistence.save()">💾 Save</button>
+                <button class="btn" onclick="app.camera.snapshot()">📷 Snap</button>
+            </div>
         </div>
 
-        <div id="ar-btn-holder"></div>
+        <div id="props-panel">
+            <div style="font-weight:600; color:white; margin-bottom:8px;">Inspector</div>
+            
+            <div class="prop-row">
+                <label>Scale</label>
+                <input type="range" min="0.1" max="3.0" step="0.1" id="inp-scale" oninput="app.editor.updateTransform('scale', this.value)">
+            </div>
+            <div class="prop-row">
+                <label>Rotation Y</label>
+                <input type="range" min="0" max="6.28" step="0.1" id="inp-rot" oninput="app.editor.updateTransform('rotate', this.value)">
+            </div>
+            <div class="prop-row">
+                <label>Height</label>
+                <input type="range" min="0" max="2.0" step="0.05" id="inp-height" oninput="app.editor.updateTransform('height', this.value)">
+            </div>
+
+            <div style="margin-top:8px; font-size:12px; color:#aaa;">Material Color</div>
+            <div class="color-grid" id="color-picker">
+                </div>
+        </div>
+
+        <div class="toolbar-container">
+            <div id="sub-toolbar">
+                <button class="sub-btn" onclick="app.tools.setShape('box')">Box</button>
+                <button class="sub-btn" onclick="app.tools.setShape('sphere')">Sphere</button>
+                <button class="sub-btn" onclick="app.tools.setShape('cone')">Cone</button>
+                <button class="sub-btn" onclick="app.tools.setShape('cylinder')">Cyl</button>
+            </div>
+
+            <div class="toolbar">
+                <button class="tool-btn active" id="mode-place" onclick="app.setMode('place')" title="Place Objects">📦</button>
+                <button class="tool-btn" id="mode-draw" onclick="app.setMode('draw')" title="3D Draw">✏️</button>
+                <button class="tool-btn" id="mode-text" onclick="app.setMode('text')" title="3D Text">Aa</button>
+                <button class="tool-btn" id="mode-select" onclick="app.setMode('select')" title="Select">👆</button>
+            </div>
+            
+            <div id="ar-button-container" style="pointer-events: auto; margin-top: 10px;"></div>
+        </div>
+    </div>
+
+    <div id="toast">Message</div>
+
+    <div id="text-modal">
+        <div class="modal-content">
+            <h3 style="color:white; margin:0;">Create 3D Text</h3>
+            <input type="text" class="modal-input" id="text-input-val" placeholder="Enter text here...">
+            <div class="btn-group" style="justify-content: center;">
+                <button class="btn" onclick="document.getElementById('text-modal').style.display='none'">Cancel</button>
+                <button class="btn btn-primary" onclick="app.tools.confirmText()">Create</button>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+        import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
 
-        let camera, scene, renderer, controller;
-        let reticle, hitTestSource = null, hitTestSourceRequested = false;
-        
-        // App State
-        let mode = 'place';
-        const placedObjects = [];
-        let currentColor = 0x007bff; // Blue
-        
-        init();
-        animate();
+        /* ================================================================
+           EPIC 0: SYSTEM ARCHITECTURE
+           Singleton App Class managing Managers (Scene, IO, Tools, etc.)
+           ================================================================
+        */
+        class App {
+            constructor() {
+                this.state = {
+                    mode: 'place', // place, draw, select, text
+                    shape: 'box',
+                    color: 0x007AFF,
+                    brushSize: 0.01,
+                    selectedId: null
+                };
+                
+                // Dependency Injection
+                this.sceneMgr = new SceneManager(this);
+                this.tools = new ToolManager(this);
+                this.editor = new EditorManager(this);
+                this.persistence = new PersistenceManager(this);
+                this.camera = new CameraManager(this);
+                this.io = new IOManager(this);
 
-        function init() {
-            const container = document.createElement('div');
-            document.body.appendChild(container); // Canvas container
+                this.init();
+            }
 
-            scene = new THREE.Scene();
+            async init() {
+                this.sceneMgr.init();
+                this.io.initUI();
+                
+                // EPIC 1: Device Detection
+                if ('xr' in navigator) {
+                    const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                    if (!supported) this.io.showToast("AR Not Supported on this device", 5000);
+                }
+            }
 
-            camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+            setMode(mode) {
+                this.state.mode = mode;
+                this.io.updateUIToolbar(mode);
+                
+                // Context-Aware UI
+                document.getElementById('sub-toolbar').style.display = (mode === 'place') ? 'flex' : 'none';
+                
+                // Selection Cleanup
+                if (mode !== 'select') this.editor.deselect();
+            }
+        }
 
-            // Lights
-            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 3);
-            light.position.set(0.5, 1, 0.25);
-            scene.add(light);
+        /* ================================================================
+           EPIC 2: AR WORLD TRACKING & SCENE
+           Handles Three.js, WebXR, Lights, and Hit-Testing
+           ================================================================
+        */
+        class SceneManager {
+            constructor(app) {
+                this.app = app;
+                this.objects = []; // Main object list
+                this.reticle = null;
+                this.hitTestSource = null;
+                this.hitTestSourceRequested = false;
+            }
 
-            // Renderer
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setPixelRatio(window.devicePixelRatio);
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.xr.enabled = true;
-            container.appendChild(renderer.domElement);
+            init() {
+                // Container
+                this.container = document.createElement('div');
+                document.body.appendChild(this.container);
 
-            // AR Button (With DOM Overlay Support)
-            const arBtn = ARButton.createButton(renderer, { 
-                requiredFeatures: ['hit-test', 'dom-overlay'], 
-                domOverlay: { root: document.body } 
-            });
-            document.getElementById('ar-btn-holder').appendChild(arBtn);
+                // Scene
+                this.scene = new THREE.Scene();
 
-            // Controller (Handles Taps)
-            controller = renderer.xr.getController(0);
-            controller.addEventListener('select', onSelect);
-            scene.add(controller);
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
-            // Reticle (The white circle cursor)
-            reticle = new THREE.Mesh(
-                new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-                new THREE.MeshBasicMaterial()
-            );
-            reticle.matrixAutoUpdate = false;
-            reticle.visible = false;
-            scene.add(reticle);
+                // EPIC 2.4: Lighting (Ambient + Directional for Shadows)
+                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
+                hemiLight.position.set(0, 1, 0);
+                this.scene.add(hemiLight);
+                
+                const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+                dirLight.position.set(0, 1, 0);
+                this.scene.add(dirLight);
 
-            // FIX 3: Prevent Placing Object when Clicking Buttons
-            document.querySelectorAll('.tool-btn').forEach(btn => {
-                btn.addEventListener('beforexrselect', (e) => {
-                    e.preventDefault(); // Stop the 3D tap passing through the button
+                // Renderer (EPIC 12: Optimization)
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.xr.enabled = true;
+                this.container.appendChild(this.renderer.domElement);
+
+                // AR Button (EPIC 2.1)
+                const arBtn = ARButton.createButton(this.renderer, { 
+                    requiredFeatures: ['hit-test', 'dom-overlay'], 
+                    domOverlay: { root: document.getElementById('ui-overlay') } 
                 });
-            });
+                document.getElementById('ar-button-container').appendChild(arBtn);
 
-            window.addEventListener('resize', onWindowResize);
-        }
+                // Controller
+                this.controller = this.renderer.xr.getController(0);
+                this.controller.addEventListener('selectstart', () => this.app.io.onSelectStart());
+                this.controller.addEventListener('selectend', () => this.app.io.onSelectEnd());
+                this.scene.add(this.controller);
 
-        // --- INTERACTIONS ---
+                // Reticle (EPIC 2.2 Plane Detection Visualization)
+                this.reticle = new THREE.Mesh(
+                    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+                    new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.8, transparent: true })
+                );
+                this.reticle.matrixAutoUpdate = false;
+                this.reticle.visible = false;
+                this.scene.add(this.reticle);
 
-        function onSelect() {
-            // Only place if Reticle is Visible
-            if (reticle.visible && mode === 'place') {
-                const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-                const material = new THREE.MeshPhongMaterial({ color: currentColor });
-                const mesh = new THREE.Mesh(geometry, material);
-                
-                // Copy position from reticle
-                reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-                mesh.position.y += 0.1; // Place on top of floor
-                
-                scene.add(mesh);
-                placedObjects.push(mesh);
+                // Resize Listener
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+
+                // Start Loop
+                this.renderer.setAnimationLoop(this.render.bind(this));
             }
-        }
 
-        // --- UI FUNCTIONS ---
-        
-        window.setMode = (m) => {
-            mode = m;
-            document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + m).classList.add('active');
-        };
-
-        window.changeColor = () => {
-            currentColor = Math.random() * 0xffffff;
-            document.getElementById('btn-color').style.border = '2px solid #' + currentColor.toString(16);
-        };
-
-        window.undo = () => {
-            if (placedObjects.length > 0) {
-                const obj = placedObjects.pop();
-                scene.remove(obj);
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
             }
-        };
 
-        // --- RENDER LOOP ---
-
-        function onWindowResize() {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        }
-
-        function animate() {
-            renderer.setAnimationLoop(render);
-        }
-
-        function render(timestamp, frame) {
-            if (frame) {
-                const referenceSpace = renderer.xr.getReferenceSpace();
-                const session = renderer.xr.getSession();
-
-                // Hit Test Setup
-                if (hitTestSourceRequested === false) {
-                    session.requestReferenceSpace('viewer').then((refSpace) => {
-                        session.requestHitTestSource({ space: refSpace }).then((source) => {
-                            hitTestSource = source;
-                        });
-                    });
-                    session.addEventListener('end', () => { 
-                        hitTestSourceRequested = false; 
-                        hitTestSource = null; 
-                        document.getElementById('status-bar').innerText = "AR Stopped";
-                    });
-                    hitTestSourceRequested = true;
+            render(timestamp, frame) {
+                // Drawing Logic (EPIC 6)
+                if (this.app.state.mode === 'draw') {
+                    this.app.tools.updateDrawing();
                 }
 
-                // Process Hit Test
-                if (hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(hitTestSource);
-                    const status = document.getElementById('status-bar');
-                    
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
-                        reticle.visible = true;
-                        reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-                        
-                        // Update Status
-                        if(status.innerText !== "Ready to Place") {
-                            status.innerText = "Ready to Place";
-                            status.classList.add('ready');
+                // AR Hit Testing Logic
+                if (frame) {
+                    const referenceSpace = this.renderer.xr.getReferenceSpace();
+                    const session = this.renderer.xr.getSession();
+
+                    if (!this.hitTestSourceRequested) {
+                        session.requestReferenceSpace('viewer').then((refSpace) => {
+                            session.requestHitTestSource({ space: refSpace }).then((source) => {
+                                this.hitTestSource = source;
+                            });
+                        });
+                        session.addEventListener('end', () => {
+                            this.hitTestSourceRequested = false;
+                            this.hitTestSource = null;
+                        });
+                        this.hitTestSourceRequested = true;
+                    }
+
+                    if (this.hitTestSource) {
+                        const hitTestResults = frame.getHitTestResults(this.hitTestSource);
+                        if (hitTestResults.length > 0) {
+                            const hit = hitTestResults[0];
+                            this.reticle.visible = true;
+                            this.reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                        } else {
+                            this.reticle.visible = false;
                         }
-                    } else {
-                        reticle.visible = false;
-                        status.innerText = "Scanning floor... Move phone slowly";
-                        status.classList.remove('ready');
                     }
                 }
+                
+                // Hide reticle if not in placement mode
+                if (this.app.state.mode !== 'place' && this.app.state.mode !== 'text') {
+                    this.reticle.visible = false;
+                }
+
+                this.renderer.render(this.scene, this.camera);
             }
-            renderer.render(scene, camera);
         }
+
+        /* ================================================================
+           EPIC 3, 6, 7: TOOL MANAGER
+           Handles Creation of Primitives, Drawing, and Text
+           ================================================================
+        */
+        class ToolManager {
+            constructor(app) {
+                this.app = app;
+                this.currentLine = null;
+                this.font = null;
+                
+                // Load Font for EPIC 7
+                const loader = new FontLoader();
+                loader.load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json', (font) => {
+                    this.font = font;
+                });
+            }
+
+            setShape(shape) {
+                this.app.state.shape = shape;
+                this.app.io.showToast(`Selected: ${shape.toUpperCase()}`);
+            }
+
+            // EPIC 3: Primitive Shapes
+            createPrimitive() {
+                const { shape, color } = this.app.state;
+                let geometry;
+                
+                // Factory Pattern
+                switch(shape) {
+                    case 'box': geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2); break;
+                    case 'sphere': geometry = new THREE.SphereGeometry(0.15, 32, 16); break;
+                    case 'cone': geometry = new THREE.ConeGeometry(0.1, 0.2, 32); break;
+                    case 'cylinder': geometry = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 32); break;
+                }
+
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: color, roughness: 0.3, metalness: 0.2 
+                });
+                
+                const mesh = new THREE.Mesh(geometry, material);
+                this.placeObject(mesh, 'primitive', { shape });
+            }
+
+            // EPIC 7: 3D Text
+            confirmText() {
+                const text = document.getElementById('text-input-val').value;
+                document.getElementById('text-modal').style.display = 'none';
+                
+                if (!this.app.sceneMgr.reticle.visible) {
+                    this.app.io.showToast("Find a surface first!", 2000);
+                    return;
+                }
+
+                const geometry = new TextGeometry(text, {
+                    font: this.font, size: 0.08, height: 0.01,
+                });
+                
+                geometry.computeBoundingBox();
+                const centerOffset = -0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
+                geometry.translate(centerOffset, 0, 0);
+
+                const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: this.app.state.color }));
+                this.placeObject(mesh, 'text', { text });
+            }
+
+            // EPIC 6: Freehand Drawing
+            startDrawing() {
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(3000 * 3); // Max 3000 points
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setDrawRange(0, 0);
+
+                const material = new THREE.LineBasicMaterial({ color: this.app.state.color, linewidth: 2 });
+                
+                this.currentLine = new THREE.Line(geometry, material);
+                this.currentLine.userData = { type: 'drawing', count: 0 };
+                
+                this.app.sceneMgr.scene.add(this.currentLine);
+            }
+
+            updateDrawing() {
+                if (!this.currentLine) return;
+                
+                // Draw at controller tip
+                const controller = this.app.sceneMgr.controller;
+                const pos = controller.position;
+                
+                const userData = this.currentLine.userData;
+                const positions = this.currentLine.geometry.attributes.position.array;
+                
+                if (userData.count < 3000) {
+                    const i = userData.count * 3;
+                    positions[i] = pos.x;
+                    positions[i+1] = pos.y;
+                    positions[i+2] = pos.z;
+                    
+                    userData.count++;
+                    this.currentLine.geometry.setDrawRange(0, userData.count);
+                    this.currentLine.geometry.attributes.position.needsUpdate = true;
+                }
+            }
+
+            endDrawing() {
+                if (this.currentLine) {
+                    this.app.sceneMgr.objects.push(this.currentLine);
+                    this.currentLine = null;
+                }
+            }
+
+            // Helper: Place object at reticle
+            placeObject(mesh, type, params) {
+                const reticle = this.app.sceneMgr.reticle;
+                reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                
+                mesh.userData = { ...params, type, id: Date.now() };
+                
+                this.app.sceneMgr.scene.add(mesh);
+                this.app.sceneMgr.objects.push(mesh);
+                
+                // Animation for feedback
+                mesh.scale.set(0,0,0);
+                this.animateScale(mesh, 1);
+            }
+
+            animateScale(mesh, target) {
+                let s = 0;
+                const anim = setInterval(() => {
+                    s += 0.1;
+                    mesh.scale.set(s,s,s);
+                    if (s >= target) clearInterval(anim);
+                }, 16);
+            }
+        }
+
+        /* ================================================================
+           EPIC 4 & 8: EDITOR MANAGER
+           Handles Selection, Transformation, and Gizmos
+           ================================================================
+        */
+        class EditorManager {
+            constructor(app) {
+                this.app = app;
+                this.selectedObj = null;
+            }
+
+            attemptSelection() {
+                // Raycast from Camera Center (Mobile Standard) or Controller
+                // Simplified: Select closest object to reticle/controller
+                let closest = null;
+                let minDst = 0.5;
+                
+                const probePos = this.app.state.mode === 'select' ? 
+                               this.app.sceneMgr.camera.position : 
+                               this.app.sceneMgr.controller.position;
+
+                // Simple distance check (Raycasting is expensive in JS loop without webworkers)
+                // For 'Select' mode, we use the reticle if visible, else camera forward
+                const targetPos = this.app.sceneMgr.reticle.visible ? 
+                                this.app.sceneMgr.reticle.position : 
+                                probePos;
+
+                this.app.sceneMgr.objects.forEach(obj => {
+                    if (obj.userData.type === 'drawing') return; // Skip drawings for now
+                    const dist = obj.position.distanceTo(targetPos);
+                    if (dist < minDst) {
+                        minDst = dist;
+                        closest = obj;
+                    }
+                });
+
+                if (closest) this.select(closest);
+                else this.deselect();
+            }
+
+            select(obj) {
+                this.deselect(); // clear previous
+                this.selectedObj = obj;
+                this.selectedObj.material.emissive.setHex(0x333333); // Highlight
+                
+                // Show Inspector
+                const panel = document.getElementById('props-panel');
+                panel.style.display = 'flex';
+                
+                // Hydrate Values
+                document.getElementById('inp-scale').value = obj.scale.x;
+                document.getElementById('inp-rot').value = obj.rotation.y;
+                document.getElementById('inp-height').value = obj.position.y;
+            }
+
+            deselect() {
+                if (this.selectedObj) {
+                    this.selectedObj.material.emissive.setHex(0x000000);
+                    this.selectedObj = null;
+                }
+                document.getElementById('props-panel').style.display = 'none';
+            }
+
+            updateTransform(type, val) {
+                if (!this.selectedObj) return;
+                val = parseFloat(val);
+                
+                if (type === 'scale') this.selectedObj.scale.set(val, val, val);
+                if (type === 'rotate') this.selectedObj.rotation.y = val;
+                if (type === 'height') this.selectedObj.position.y = val;
+            }
+
+            changeColor(hex) {
+                if (this.selectedObj) {
+                    this.selectedObj.material.color.setHex(hex);
+                    this.selectedObj.userData.color = hex;
+                }
+                this.app.state.color = hex;
+            }
+        }
+
+        /* ================================================================
+           EPIC 10 & 11: IO & PERSISTENCE
+           Save/Load, Screenshots, User Input handling
+           ================================================================
+        */
+        class PersistenceManager {
+            constructor(app) { this.app = app; }
+            
+            save() {
+                const data = this.app.sceneMgr.objects.map(obj => ({
+                    type: obj.userData.type,
+                    transform: { 
+                        pos: obj.position.toArray(), 
+                        rot: obj.rotation.toArray(), 
+                        scl: obj.scale.toArray() 
+                    },
+                    color: obj.material.color ? obj.material.color.getHex() : 0xffffff,
+                    extra: obj.userData
+                }));
+                
+                localStorage.setItem('ar_save_v1', JSON.stringify(data));
+                this.app.io.showToast("Project Saved Locally!");
+            }
+            
+            // Note: Load logic would be implemented here, parsing JSON and rebuilding meshes
+        }
+
+        class CameraManager {
+            constructor(app) { this.app = app; }
+            
+            snapshot() {
+                // Must be called immediately after render
+                this.app.sceneMgr.renderer.render(this.app.sceneMgr.scene, this.app.sceneMgr.camera);
+                const dataURL = this.app.sceneMgr.renderer.domElement.toDataURL('image/png');
+                
+                const link = document.createElement('a');
+                link.download = `AR-Design-${Date.now()}.png`;
+                link.href = dataURL;
+                link.click();
+                this.app.io.showToast("Snapshot Saved!");
+            }
+        }
+
+        class IOManager {
+            constructor(app) { 
+                this.app = app; 
+                this.colors = [0xff3b30, 0xff9500, 0xffcc00, 0x4cd964, 0x007AFF, 0x5856d6, 0xff2d55, 0xffffff, 0x000000];
+            }
+
+            initUI() {
+                // Generate Color Picker
+                const picker = document.getElementById('color-picker');
+                this.colors.forEach(c => {
+                    const d = document.createElement('div');
+                    d.className = 'color-swatch';
+                    d.style.backgroundColor = '#' + c.toString(16).padStart(6, '0');
+                    d.onclick = () => {
+                        this.app.editor.changeColor(c);
+                        // Visual selection
+                        document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                        d.classList.add('active');
+                    };
+                    picker.appendChild(d);
+                });
+            }
+
+            // Input Routing
+            onSelectStart() {
+                const mode = this.app.state.mode;
+                if (mode === 'draw') this.app.tools.startDrawing();
+            }
+
+            onSelectEnd() {
+                const mode = this.app.state.mode;
+                const reticle = this.app.sceneMgr.reticle;
+
+                if (mode === 'draw') {
+                    this.app.tools.endDrawing();
+                } else if (mode === 'place' && reticle.visible) {
+                    this.app.tools.createPrimitive();
+                } else if (mode === 'text' && reticle.visible) {
+                    document.getElementById('text-modal').style.display = 'flex';
+                } else if (mode === 'select') {
+                    this.app.editor.attemptSelection();
+                }
+            }
+
+            updateUIToolbar(mode) {
+                document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById(`mode-${mode}`).classList.add('active');
+            }
+
+            showToast(msg, dur=2000) {
+                const t = document.getElementById('toast');
+                t.innerText = msg;
+                t.style.opacity = 1;
+                setTimeout(() => t.style.opacity = 0, dur);
+            }
+            
+            undo() {
+                const objs = this.app.sceneMgr.objects;
+                if (objs.length > 0) {
+                    const last = objs.pop();
+                    this.app.sceneMgr.scene.remove(last);
+                    // Dispose geometry/materials to prevent memory leaks (EPIC 12)
+                    if(last.geometry) last.geometry.dispose();
+                    if(last.material) last.material.dispose();
+                    this.showToast("Undo");
+                }
+            }
+            
+            deleteSelection() {
+                if(this.app.editor.selectedObj) {
+                    const obj = this.app.editor.selectedObj;
+                    this.app.sceneMgr.scene.remove(obj);
+                    this.app.sceneMgr.objects = this.app.sceneMgr.objects.filter(o => o !== obj);
+                    this.app.editor.deselect();
+                    this.showToast("Deleted");
+                }
+            }
+        }
+
+        // Start App
+        window.app = new App();
     </script>
 </body>
 </html>
