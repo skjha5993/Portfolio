@@ -3,473 +3,304 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>AR Digital Twin Scanner</title>
-    
+    <title>AR Scanner V5 (Diagnostic)</title>
     <style>
-        :root { --accent: #00E5FF; --glass: rgba(10, 10, 10, 0.85); }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', monospace; color: white; }
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; color: white; }
         
-        /* FULLSCREEN CANVAS */
-        #ar-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        /* ERROR MODAL */
+        #error-overlay {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(50,0,0,0.9); z-index: 999; display: none;
+            flex-direction: column; align-items: center; justify-content: center; text-align: center;
+            padding: 20px; box-sizing: border-box;
+        }
+        .error-title { font-size: 24px; color: #ff4444; margin-bottom: 10px; font-weight: bold; }
+        .error-msg { font-size: 16px; color: #ddd; margin-bottom: 20px; line-height: 1.5; }
+        .btn { padding: 12px 24px; border-radius: 8px; border: none; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-force { background: #444; color: white; border: 1px solid #777; }
         
-        /* UI OVERLAY */
-        #ui-layer { 
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
-            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
-        }
+        /* UI LAYER */
+        #ui-layer { position: absolute; inset: 0; pointer-events: none; }
         
-        /* BOUNDING BOXES (AI DETECTION) */
-        .bbox {
-            position: absolute; border: 2px solid var(--accent); border-radius: 8px;
-            background: rgba(0, 229, 255, 0.1); pointer-events: auto; cursor: crosshair;
-            transition: all 0.1s;
+        /* LOG CONSOLE */
+        #console-log {
+            position: absolute; top: 10px; left: 10px; width: 90%; height: 150px;
+            background: rgba(0,0,0,0.5); pointer-events: none; overflow-y: auto;
+            font-family: monospace; font-size: 11px; padding: 5px; border-left: 2px solid #0f0;
         }
-        .bbox:active { background: rgba(0, 229, 255, 0.4); border-color: white; }
-        .bbox-label {
-            position: absolute; top: -20px; left: 0; background: var(--accent); color: black;
-            font-size: 10px; padding: 2px 6px; font-weight: bold; border-radius: 4px;
-        }
+        .log-line { margin-bottom: 2px; }
+        .log-err { color: #ff5555; }
+        .log-info { color: #55ff55; }
 
-        /* HEADER */
-        .hud-header {
-            padding: 20px; background: linear-gradient(180deg, black, transparent);
-            display: flex; justify-content: space-between; align-items: center;
+        /* CONTROLS */
+        #controls {
+            position: absolute; bottom: 20px; width: 100%; text-align: center; pointer-events: auto;
+            display: flex; flex-direction: column; align-items: center; gap: 10px;
         }
-        .status-badge {
-            background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px;
-            border: 1px solid rgba(255,255,255,0.2); font-size: 12px; display: flex; align-items: center; gap: 8px;
-        }
-        .status-light { width: 8px; height: 8px; background: #FF3B30; border-radius: 50%; box-shadow: 0 0 5px #FF3B30; }
-        .status-light.ready { background: #32D74B; box-shadow: 0 0 5px #32D74B; }
-
-        /* SCANNER CONTROLS */
-        .scanner-hud {
-            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
-            width: 90%; max-width: 400px;
-            display: flex; flex-direction: column; gap: 10px; align-items: center;
-            pointer-events: auto;
-        }
-
-        .scan-btn {
-            width: 70px; height: 70px; border-radius: 50%; background: transparent;
-            border: 4px solid white; position: relative; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .scan-inner { width: 50px; height: 50px; background: var(--accent); border-radius: 50%; transition: all 0.2s; }
-        .scan-btn:active .scan-inner { transform: scale(0.9); }
-        
-        .scan-progress {
-            width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;
-            display: none;
-        }
-        .scan-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.1s linear; }
-
-        /* TOAST */
-        #console {
-            position: absolute; top: 80px; left: 20px; font-size: 10px; color: #0f0; 
-            text-shadow: 0 0 2px black; pointer-events: none; white-space: pre-wrap;
+        #scan-btn {
+            background: #00E5FF; color: black; padding: 15px 30px; border-radius: 30px;
+            font-size: 16px; font-weight: bold; border: none; display: none;
         }
     </style>
-    
+
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
-                "@tensorflow/tfjs": "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js",
-                "@tensorflow-models/coco-ssd": "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
             }
         }
     </script>
 </head>
 <body>
-    
+
+    <div id="error-overlay">
+        <div class="error-title">Startup Failed</div>
+        <div class="error-msg" id="error-text">Unknown Error</div>
+        <button class="btn btn-force" onclick="app.forceStart()">Try Force Start</button>
+    </div>
+
     <div id="ui-layer">
-        <div class="hud-header">
-            <div style="font-weight:800; letter-spacing:1px;">TWIN<span style="color:var(--accent)">SCAN</span></div>
-            <div class="status-badge">
-                <div class="status-light" id="ai-status"></div>
-                <span id="ai-text">Loading AI...</span>
-            </div>
+        <div id="console-log"></div>
+        <div id="controls">
+            <button id="scan-btn" onclick="app.scanner.trigger()">PLACE SCANNER</button>
+            <div id="ar-prompt"></div>
         </div>
-
-        <div id="bbox-layer" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
-
-        <div id="console">Initializing System...</div>
-
-        <div class="scanner-hud">
-            <div id="scan-message" style="background:rgba(0,0,0,0.7); padding:4px 8px; border-radius:4px; font-size:12px; margin-bottom:10px;">Select an object to scan</div>
-            <div class="scan-progress"><div class="scan-bar" id="scan-bar"></div></div>
-            <div class="scan-btn" id="trigger-btn" onclick="app.scanner.triggerScan()">
-                <div class="scan-inner"></div>
-            </div>
-        </div>
-        
-        <div id="ar-prompt" style="pointer-events:auto; position:absolute; bottom:10px; left:50%; transform:translateX(-50%);"></div>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
-        
-        // --- GLOBAL APP CONTROLLER ---
-        class App {
-            constructor() {
-                this.state = {
-                    scanning: false,
-                    selectedObject: null, // The 3D object wrapper
-                    aiReady: false,
-                    arReady: false
-                };
 
-                // Modules
-                this.sceneMgr = new SceneManager(this);
-                this.ai = new VisionManager(this);
-                this.scanner = new ScannerManager(this);
-                this.io = new IOManager(this);
-
-                this.init();
+        // --- LOGGER UTILITY ---
+        const logger = {
+            log: (msg) => {
+                console.log(msg);
+                const el = document.getElementById('console-log');
+                el.innerHTML += `<div class="log-line log-info">> ${msg}</div>`;
+                el.scrollTop = el.scrollHeight;
+            },
+            error: (msg) => {
+                console.error(msg);
+                const el = document.getElementById('console-log');
+                el.innerHTML += `<div class="log-line log-err">ERROR: ${msg}</div>`;
+                el.scrollTop = el.scrollHeight;
+                showError(msg);
             }
+        };
 
-            async init() {
-                this.io.log("System Boot...");
-                await this.ai.loadModel();
-                this.sceneMgr.init();
-            }
+        function showError(msg) {
+            document.getElementById('error-overlay').style.display = 'flex';
+            document.getElementById('error-text').innerHTML = msg;
         }
 
-        // --- SCENE MANAGER (THREE.JS + WEBXR) ---
-        class SceneManager {
-            constructor(app) {
-                this.app = app;
-                this.scene = null;
-                this.camera = null;
-                this.renderer = null;
-                this.reticle = null;
-                this.hitTestSource = null;
+        class App {
+            constructor() {
+                this.sceneMgr = null;
+                this.scanner = null;
+                
+                // 1. Run Pre-Flight Checks
+                this.preFlightCheck();
+            }
+
+            async preFlightCheck() {
+                logger.log("Starting Pre-Flight Checks...");
+
+                // CHECK 1: HTTPS
+                if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                    logger.error("NOT HTTPS! WebXR requires a secure context (https://).");
+                    return;
+                }
+
+                // CHECK 2: WebXR Support
+                if ('xr' in navigator) {
+                    try {
+                        const supported = await navigator.xr.isSessionSupported('immersive-ar');
+                        if (supported) {
+                            logger.log("✅ WebXR AR Supported");
+                            this.init();
+                        } else {
+                            logger.error("WebXR exists but 'immersive-ar' is NOT supported on this device.");
+                        }
+                    } catch (e) {
+                        logger.error("WebXR Check Failed: " + e.message);
+                    }
+                } else {
+                    logger.error("WebXR API not found. (Are you on iOS Safari? Use 'WebXR Viewer' app or Enable Flags).");
+                }
             }
 
             init() {
-                this.scene = new THREE.Scene();
-                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+                try {
+                    logger.log("Initializing Engine...");
+                    this.sceneMgr = new SceneManager(this);
+                    this.scanner = new Scanner(this);
+                } catch(e) {
+                    logger.error("Crash during Init: " + e.message);
+                }
+            }
+
+            forceStart() {
+                document.getElementById('error-overlay').style.display = 'none';
+                this.init();
+            }
+        }
+
+        class SceneManager {
+            constructor(app) {
+                this.app = app;
                 
-                // Light setup for realistic twins
-                const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
-                this.scene.add(hemi);
-                const dir = new THREE.DirectionalLight(0xffffff, 2);
-                dir.position.set(2, 5, 2);
-                this.scene.add(dir);
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+                
+                const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 3);
+                this.scene.add(light);
 
                 this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-                this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.xr.enabled = true;
                 document.body.appendChild(this.renderer.domElement);
 
                 // AR Button
-                const arBtn = ARButton.createButton(this.renderer, { 
+                const btn = ARButton.createButton(this.renderer, { 
                     requiredFeatures: ['hit-test', 'dom-overlay'], 
                     domOverlay: { root: document.getElementById('ui-layer') } 
                 });
-                document.getElementById('ar-prompt').appendChild(arBtn);
+                document.getElementById('ar-prompt').appendChild(btn);
 
                 // Reticle
                 this.reticle = new THREE.Mesh(
-                    new THREE.RingGeometry(0.1, 0.11, 32).rotateX(-Math.PI/2),
-                    new THREE.MeshBasicMaterial({ color: 0x00E5FF })
+                    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
+                    new THREE.MeshBasicMaterial({ color: 0x00ff00 })
                 );
                 this.reticle.visible = false;
                 this.scene.add(this.reticle);
 
-                // Start Loop
+                // Click Listener for AR Start
+                btn.addEventListener('click', () => {
+                    logger.log("AR Session Starting...");
+                    document.getElementById('scan-btn').style.display = 'block';
+                });
+
                 this.renderer.setAnimationLoop((t, f) => this.render(t, f));
             }
 
-            render(timestamp, frame) {
+            render(t, frame) {
                 if(frame) {
-                    this.handleHitTest(frame);
-                    
-                    // Update AI detection on video frame (Throttled)
-                    if(this.app.ai.model && timestamp % 30 < 2) {
-                        // We can't access raw camera feed easily in WebXR for TFJS without constraints
-                        // For this demo, we assume the user is looking through the device
-                        // Note: Realtime TFJS in WebXR requires getting the WebGL texture
+                    const session = this.renderer.xr.getSession();
+                    // HIT TEST LOGIC
+                    if(!this.hitSourceRequested) {
+                        session.requestReferenceSpace('viewer').then(ref => {
+                            session.requestHitTestSource({ space: ref }).then(src => this.hitSource = src);
+                        });
+                        this.hitSourceRequested = true;
+                    }
+
+                    if(this.hitSource) {
+                        const hits = frame.getHitTestResults(this.hitSource);
+                        if(hits.length > 0) {
+                            const hit = hits[0];
+                            const pose = hit.getPose(this.renderer.xr.getReferenceSpace());
+                            this.reticle.visible = true;
+                            this.reticle.matrix.fromArray(pose.transform.matrix);
+                            this.reticle.matrixAutoUpdate = false; // Optimize
+                        } else {
+                            this.reticle.visible = false;
+                        }
                     }
                 }
-
-                // Animate Scanner
-                this.app.scanner.update(timestamp);
                 
+                // Animation Hooks
+                if(this.app.scanner) this.app.scanner.update(t);
+
                 this.renderer.render(this.scene, this.camera);
             }
+        }
 
-            handleHitTest(frame) {
-                const session = this.renderer.xr.getSession();
-                const refSpace = this.renderer.xr.getReferenceSpace();
+        class Scanner {
+            constructor(app) {
+                this.app = app;
+                this.rig = null;
+                this.scanning = false;
+            }
 
-                if (!this.hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then(ref => {
-                        session.requestHitTestSource({ space: ref }).then(src => this.hitTestSource = src);
-                    });
-                    this.hitTestSourceRequested = true;
-                }
-
-                if (this.hitTestSource) {
-                    const hits = frame.getHitTestResults(this.hitTestSource);
-                    if (hits.length > 0) {
-                        const hit = hits[0];
-                        const pose = hit.getPose(refSpace);
-                        this.reticle.visible = true;
-                        this.reticle.matrix.fromArray(pose.transform.matrix);
+            trigger() {
+                const reticle = this.app.sceneMgr.reticle;
+                
+                if(!this.rig) {
+                    // PHASE 1: PLACE
+                    if(reticle.visible) {
+                        logger.log("Placing Scanner Rig...");
+                        this.createRig(reticle.matrix);
+                        document.getElementById('scan-btn').innerText = "START SCAN";
                     } else {
-                        this.reticle.visible = false;
+                        logger.log("Cannot Place: Point at floor first!");
                     }
-                }
-            }
-        }
-
-        // --- VISION MANAGER (TENSORFLOW.JS) ---
-        class VisionManager {
-            constructor(app) {
-                this.app = app;
-                this.model = null;
-                this.video = null;
-                this.isDetecting = false;
-            }
-
-            async loadModel() {
-                this.app.io.log("Loading AI Model (COCO-SSD)...");
-                // Dynamically import global objects
-                if(window.cocoSsd) {
-                    this.model = await cocoSsd.load();
-                    this.app.state.aiReady = true;
-                    this.app.io.updateStatus(true, "AI Active");
-                    this.app.io.log("AI Model Loaded. Starting Vision...");
-                    this.startDetectionLoop();
-                } else {
-                    setTimeout(() => this.loadModel(), 500); // Retry
+                } else if(!this.scanning) {
+                    // PHASE 2: SCAN
+                    logger.log("Scanning...");
+                    this.scanning = true;
+                    this.scanAnimStart = performance.now();
+                    document.getElementById('scan-btn').style.display = 'none'; // Hide btn
                 }
             }
 
-            async startDetectionLoop() {
-                // In a browser WebXR session, we don't always get direct access to the camera stream for TFJS
-                // So we fallback to standard getUserMedia for the "Pass-through" simulation or 
-                // run detection on the canvas if possible. 
-                // *Critical Fix for Production*: WebXR obscures the video element. 
-                // We will create a background video element to run detection on.
-                
-                this.video = document.createElement('video');
-                this.video.style.display = 'none';
-                
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: 'environment' } 
-                    });
-                    this.video.srcObject = stream;
-                    this.video.play();
-                    
-                    // Detection Interval
-                    setInterval(async () => {
-                        if(this.app.state.aiReady && !this.app.state.scanning) {
-                            const predictions = await this.model.detect(this.video);
-                            this.drawBoundingBoxes(predictions);
-                        }
-                    }, 500); // Check every 500ms
-                }
-            }
+            createRig(matrix) {
+                this.rig = new THREE.Group();
+                this.rig.position.setFromMatrixPosition(matrix);
+                this.rig.quaternion.setFromRotationMatrix(matrix);
 
-            drawBoundingBoxes(predictions) {
-                const layer = document.getElementById('bbox-layer');
-                layer.innerHTML = ''; // Clear old
+                // Box
+                const box = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshBasicMaterial({ color: 0x00E5FF, wireframe: true }));
+                box.position.y = 0.2;
+                this.rig.add(box);
 
-                // Screen Scaling factors
-                const scaleX = window.innerWidth / this.video.videoWidth;
-                const scaleY = window.innerHeight / this.video.videoHeight;
+                // Laser
+                this.laser = new THREE.Mesh(new THREE.PlaneGeometry(0.38, 0.38), new THREE.MeshBasicMaterial({ color: 0xff0000, side: 2, opacity: 0.5, transparent: true }));
+                this.laser.rotation.x = Math.PI/2;
+                this.laser.position.y = 0.05;
+                this.rig.add(this.laser);
 
-                predictions.forEach(p => {
-                    if(p.score > 0.6) { // Confidence threshold
-                        const div = document.createElement('div');
-                        div.className = 'bbox';
-                        // Math to map video coords to screen coords
-                        div.style.left = (p.bbox[0] * scaleX) + 'px';
-                        div.style.top = (p.bbox[1] * scaleY) + 'px';
-                        div.style.width = (p.bbox[2] * scaleX) + 'px';
-                        div.style.height = (p.bbox[3] * scaleY) + 'px';
-                        
-                        // Label
-                        div.innerHTML = `<div class="bbox-label">${p.class} ${(p.score*100).toFixed(0)}%</div>`;
-                        
-                        // Interaction
-                        div.ontouchstart = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation(); // Stop click passing through
-                            this.app.scanner.selectTarget(p.class);
-                        };
-                        div.onclick = (e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            this.app.scanner.selectTarget(p.class);
-                        };
-
-                        layer.appendChild(div);
-                    }
-                });
-            }
-        }
-
-        // --- SCANNER MANAGER (LOGIC & TWIN GEN) ---
-        class ScannerManager {
-            constructor(app) {
-                this.app = app;
-                this.scanTarget = null; // Mesh
-                this.scanBox = null;    // Visual Box
-                this.scanLaser = null;  // Laser Plane
-            }
-
-            selectTarget(className) {
-                this.app.io.log(`Target Selected: ${className.toUpperCase()}`);
-                this.app.io.updateMessage(`Tap SCAN to digitize ${className}`);
-                
-                // Remove Detection Boxes to clean UI
-                document.getElementById('bbox-layer').innerHTML = '';
-                
-                // Place the "Scanner Box" at the Reticle position (Real World Location)
-                if(this.app.sceneMgr.reticle.visible) {
-                    this.createScannerBox(this.app.sceneMgr.reticle.matrix);
-                } else {
-                    this.app.io.log("Error: No Surface Detected. Look at floor.");
-                }
-            }
-
-            createScannerBox(matrix) {
-                if(this.scanBox) this.app.sceneMgr.scene.remove(this.scanBox);
-
-                // 1. The Wireframe Box
-                const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-                const mat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, wireframe: true });
-                this.scanBox = new THREE.Mesh(geo, mat);
-                
-                // Position it
-                this.scanBox.position.setFromMatrixPosition(matrix);
-                this.scanBox.quaternion.setFromRotationMatrix(matrix);
-                this.scanBox.position.y += 0.25; // Sit on floor
-                
-                this.app.sceneMgr.scene.add(this.scanBox);
-
-                // 2. The Laser Plane
-                const laserGeo = new THREE.PlaneGeometry(0.5, 0.5);
-                const laserMat = new THREE.MeshBasicMaterial({ color: 0xFF3B30, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
-                this.scanLaser = new THREE.Mesh(laserGeo, laserMat);
-                this.scanLaser.rotation.x = Math.PI / 2;
-                this.scanBox.add(this.scanLaser); // Child of box
-            }
-
-            triggerScan() {
-                if(!this.scanBox) return this.app.io.log("Select an object first!");
-                if(this.app.state.scanning) return;
-
-                this.app.state.scanning = true;
-                this.app.io.log("Scanning Object Surface...");
-                
-                // UI Animation
-                document.querySelector('.scan-progress').style.display = 'block';
-                document.getElementById('trigger-btn').style.opacity = '0.5';
-
-                // Simulate Scan Process (2 Seconds)
-                let progress = 0;
-                const interval = setInterval(() => {
-                    progress += 2;
-                    document.getElementById('scan-bar').style.width = progress + '%';
-                    
-                    // Move Laser
-                    if(this.scanLaser) {
-                        this.scanLaser.position.y = Math.sin(progress/10) * 0.2;
-                    }
-
-                    if(progress >= 100) {
-                        clearInterval(interval);
-                        this.finalizeTwin();
-                    }
-                }, 30);
-            }
-
-            finalizeTwin() {
-                this.app.state.scanning = false;
-                this.app.io.log("Processing Point Cloud...");
-                this.app.io.updateMessage("Digital Twin Created");
-
-                // Remove Scanner visuals
-                this.app.sceneMgr.scene.remove(this.scanBox);
-                this.scanBox = null;
-                document.querySelector('.scan-progress').style.display = 'none';
-                document.getElementById('trigger-btn').style.opacity = '1';
-
-                // GENERATE DIGITAL TWIN
-                // In a real app, we would use the camera texture. 
-                // Here we generate a High-Detail Procedural Mesh to represent the twin.
-                
-                const detail = 64; // High vertex count
-                const geometry = new THREE.IcosahedronGeometry(0.25, 10); // Detailed sphere/blob
-                
-                // Add Noise to vertices to make it look "scanned" and organic
-                const pos = geometry.attributes.position;
-                for(let i=0; i<pos.count; i++){
-                    pos.setY(i, pos.getY(i) + (Math.random()*0.02)); 
-                }
-                geometry.computeVertexNormals();
-
-                // Advanced Material (Wireframe over Solid)
-                const material = new THREE.MeshStandardMaterial({ 
-                    color: 0x00E5FF, 
-                    metalness: 0.8, 
-                    roughness: 0.2,
-                    wireframe: false,
-                    flatShading: false
-                });
-
-                const twin = new THREE.Mesh(geometry, material);
-                
-                // Anchor to where the scanner was
-                // We need to re-find the position or save it. 
-                // Currently using last reticle pos or camera front
-                if(this.app.sceneMgr.reticle) {
-                    twin.position.copy(this.app.sceneMgr.reticle.position);
-                    twin.position.y += 0.25;
-                }
-                
-                this.app.sceneMgr.scene.add(twin);
-                
-                // Particle Explosion Effect (Completion)
-                this.createParticles(twin.position);
-            }
-            
-            createParticles(pos) {
-                // Simple particle burst
-                const count = 50;
-                const geo = new THREE.BufferGeometry();
-                const posArray = new Float32Array(count * 3);
-                
-                for(let i=0; i<count*3; i++) {
-                    posArray[i] = (Math.random() - 0.5) * 0.5;
-                }
-                geo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
-                
-                const mat = new THREE.PointsMaterial({color: 0xffffff, size: 0.02});
-                const sys = new THREE.Points(geo, mat);
-                sys.position.copy(pos);
-                this.app.sceneMgr.scene.add(sys);
-                
-                // Animate removal
-                setTimeout(() => this.app.sceneMgr.scene.remove(sys), 1000);
+                this.app.sceneMgr.scene.add(this.rig);
             }
 
             update(t) {
-                // Animation loop updates
+                if(this.scanning && this.rig) {
+                    const elapsed = t - this.scanAnimStart;
+                    
+                    // Move Laser
+                    this.laser.position.y = 0.2 + Math.sin(elapsed * 0.005) * 0.18;
+
+                    // Finish after 3 seconds
+                    if(elapsed > 3000) {
+                        this.scanning = false;
+                        this.finish();
+                    }
+                }
+            }
+
+            finish() {
+                logger.log("Scan Complete! Creating Twin.");
+                this.app.sceneMgr.scene.remove(this.rig);
+                
+                // Create Twin
+                const geo = new THREE.DodecahedronGeometry(0.2);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x00E5FF, metalness: 0.8, roughness: 0.1 });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.copy(this.rig.position);
+                mesh.position.y = 0.2;
+                this.app.sceneMgr.scene.add(mesh);
+                
+                // Add Reset Button
+                const btn = document.getElementById('scan-btn');
+                btn.style.display = 'block';
+                btn.innerText = "RESET";
+                btn.onclick = () => location.reload();
             }
         }
 
-        // --- IO MANAGER ---
-        class IOManager {
-            constructor(app) { this.app = app; }
-            log(msg) { 
-                console.log(msg
+        // START
+        window.app = new App();
+    </script>
+</body>
+</html>
