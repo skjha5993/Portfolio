@@ -2,585 +2,474 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AR Architect Pro | v3.1 Final</title>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>AR Digital Twin Scanner</title>
     
     <style>
-        /* --- CORE VARIABLES --- */
-        :root {
-            --glass: rgba(20, 20, 20, 0.85);
-            --glass-light: rgba(255, 255, 255, 0.1);
-            --accent: #007AFF;
-            --accent-glow: rgba(0, 122, 255, 0.5);
-            --danger: #FF3B30;
-            --success: #34C759;
-            --text: #ffffff;
-            --radius: 20px;
+        :root { --accent: #00E5FF; --glass: rgba(10, 10, 10, 0.85); }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Segoe UI', monospace; color: white; }
+        
+        /* FULLSCREEN CANVAS */
+        #ar-canvas { position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 1; }
+        
+        /* UI OVERLAY */
+        #ui-layer { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100;
+            pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        
+        /* BOUNDING BOXES (AI DETECTION) */
+        .bbox {
+            position: absolute; border: 2px solid var(--accent); border-radius: 8px;
+            background: rgba(0, 229, 255, 0.1); pointer-events: auto; cursor: crosshair;
+            transition: all 0.1s;
+        }
+        .bbox:active { background: rgba(0, 229, 255, 0.4); border-color: white; }
+        .bbox-label {
+            position: absolute; top: -20px; left: 0; background: var(--accent); color: black;
+            font-size: 10px; padding: 2px 6px; font-weight: bold; border-radius: 4px;
         }
 
-        /* --- GLOBAL RESET --- */
-        * { box-sizing: border-box; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-        body { margin: 0; overflow: hidden; background: #000; font-family: 'Inter', sans-serif; color: var(--text); }
-
-        /* --- UI LAYERS --- */
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
-        .interactive { pointer-events: auto; }
-
-        /* --- HEADER & TOP BAR --- */
-        .header { padding: 16px; display: flex; justify-content: space-between; background: linear-gradient(180deg, rgba(0,0,0,0.8), transparent); }
-        .status-badge { padding: 6px 12px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; backdrop-filter: blur(10px); }
-        .status-dot { width: 8px; height: 8px; background: #FFD60A; border-radius: 50%; }
-        .status-dot.ready { background: #32D74B; box-shadow: 0 0 8px #32D74B; }
-        
-        /* --- BUTTON STYLES --- */
-        .btn-group { display: flex; gap: 10px; }
-        .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--glass); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s; }
-        .icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.2); }
-        .icon-btn.active { background: var(--accent); border-color: transparent; box-shadow: 0 0 12px var(--accent-glow); }
-
-        /* --- INSPECTOR PANEL (Bottom Sheet) --- */
-        #inspector {
-            position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%) translateY(20px);
-            width: 90%; max-width: 400px; background: var(--glass); backdrop-filter: blur(20px);
-            padding: 20px; border-radius: var(--radius); opacity: 0; pointer-events: none;
-            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
-            border: 1px solid rgba(255,255,255,0.1);
-            display: flex; flex-direction: column; gap: 14px;
+        /* HEADER */
+        .hud-header {
+            padding: 20px; background: linear-gradient(180deg, black, transparent);
+            display: flex; justify-content: space-between; align-items: center;
         }
-        #inspector.visible { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+        .status-badge {
+            background: rgba(255,255,255,0.1); padding: 5px 12px; border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.2); font-size: 12px; display: flex; align-items: center; gap: 8px;
+        }
+        .status-light { width: 8px; height: 8px; background: #FF3B30; border-radius: 50%; box-shadow: 0 0 5px #FF3B30; }
+        .status-light.ready { background: #32D74B; box-shadow: 0 0 5px #32D74B; }
 
-        .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #ccc; }
-        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; font-weight: 800; margin-bottom: 4px; }
-        
-        /* Sliders */
-        input[type=range] { width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); appearance: none; }
-        input[type=range]::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        /* SCANNER CONTROLS */
+        .scanner-hud {
+            position: absolute; bottom: 40px; left: 50%; transform: translateX(-50%);
+            width: 90%; max-width: 400px;
+            display: flex; flex-direction: column; gap: 10px; align-items: center;
+            pointer-events: auto;
+        }
 
-        /* Material Buttons */
-        .mat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-        .mat-btn { padding: 8px 0; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 8px; font-size: 11px; }
-        .mat-btn.active { background: var(--accent); }
+        .scan-btn {
+            width: 70px; height: 70px; border-radius: 50%; background: transparent;
+            border: 4px solid white; position: relative; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .scan-inner { width: 50px; height: 50px; background: var(--accent); border-radius: 50%; transition: all 0.2s; }
+        .scan-btn:active .scan-inner { transform: scale(0.9); }
         
-        /* --- MAIN TOOLBAR --- */
-        .toolbar-container { padding: 30px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
-        
-        .toolbar { display: flex; gap: 12px; padding: 10px 20px; background: var(--glass); border-radius: 40px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px); }
-        
-        #sub-menu { display: flex; gap: 8px; margin-bottom: 8px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
-        #sub-menu.visible { opacity: 1; pointer-events: auto; }
-        .sub-btn { width: 36px; height: 36px; border-radius: 10px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); font-size: 18px; }
+        .scan-progress {
+            width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;
+            display: none;
+        }
+        .scan-bar { width: 0%; height: 100%; background: var(--accent); transition: width 0.1s linear; }
 
-        /* --- MODALS --- */
-        #text-modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; align-items: center; justify-content: center; pointer-events: auto; }
-        .modal-card { background: #1a1a1a; padding: 24px; border-radius: 20px; width: 80%; max-width: 320px; text-align: center; }
-        .modal-input { width: 100%; padding: 12px; background: #333; border: none; color: white; border-radius: 10px; margin: 16px 0; font-size: 16px; }
-        .primary-btn { width: 100%; padding: 12px; background: var(--accent); border: none; color: white; border-radius: 10px; font-weight: 600; font-size: 14px; }
-
-        /* --- UTILS --- */
-        #toast { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 30px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
-        #file-input { display: none; }
+        /* TOAST */
+        #console {
+            position: absolute; top: 80px; left: 20px; font-size: 10px; color: #0f0; 
+            text-shadow: 0 0 2px black; pointer-events: none; white-space: pre-wrap;
+        }
     </style>
-
+    
     <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/",
+                "@tensorflow/tfjs": "https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.10.0/dist/tf.min.js",
+                "@tensorflow-models/coco-ssd": "https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js"
             }
         }
     </script>
 </head>
 <body>
-
+    
     <div id="ui-layer">
-        
-        <div class="header interactive">
+        <div class="hud-header">
+            <div style="font-weight:800; letter-spacing:1px;">TWIN<span style="color:var(--accent)">SCAN</span></div>
             <div class="status-badge">
-                <div class="status-dot" id="status-dot"></div>
-                <span id="status-text">Scanning...</span>
-            </div>
-            <div class="btn-group">
-                <button class="icon-btn" onclick="app.persistence.load()" title="Load Scene">📂</button>
-                <button class="icon-btn" onclick="app.persistence.save()" title="Save Scene">💾</button>
-                <button class="icon-btn" onclick="app.camera.snap()" title="Take Screenshot">📷</button>
-                <button class="icon-btn" onclick="app.io.undo()" title="Undo">↩️</button>
+                <div class="status-light" id="ai-status"></div>
+                <span id="ai-text">Loading AI...</span>
             </div>
         </div>
 
-        <div id="inspector" class="interactive">
-            <div class="row">
-                <div class="section-title">TRANSFORM</div>
-                <button class="icon-btn" style="width:24px; height:24px; background:var(--danger); font-size:12px;" onclick="app.editor.deleteSelected()">✕</button>
-            </div>
-            <div class="row"><span>Scale</span> <input type="range" min="0.2" max="3" step="0.1" id="sl-scale" oninput="app.editor.updateTransform()"></div>
-            <div class="row"><span>Rotate</span> <input type="range" min="0" max="6.28" step="0.1" id="sl-rot" oninput="app.editor.updateTransform()"></div>
-            <div class="row"><span>Lift</span> <input type="range" min="0" max="1.5" step="0.05" id="sl-y" oninput="app.editor.updateTransform()"></div>
+        <div id="bbox-layer" style="position:absolute; top:0; left:0; width:100%; height:100%;"></div>
 
-            <div class="section-title" style="margin-top:8px;">MATERIAL</div>
-            <div class="mat-grid">
-                <button class="mat-btn active" onclick="app.editor.setMaterial('plastic', this)">Plastic</button>
-                <button class="mat-btn" onclick="app.editor.setMaterial('metal', this)">Metal</button>
-                <button class="mat-btn" onclick="app.editor.setMaterial('glow', this)">Glow</button>
-                <button class="mat-btn" onclick="app.editor.triggerTextureUpload()">Image</button>
+        <div id="console">Initializing System...</div>
+
+        <div class="scanner-hud">
+            <div id="scan-message" style="background:rgba(0,0,0,0.7); padding:4px 8px; border-radius:4px; font-size:12px; margin-bottom:10px;">Select an object to scan</div>
+            <div class="scan-progress"><div class="scan-bar" id="scan-bar"></div></div>
+            <div class="scan-btn" id="trigger-btn" onclick="app.scanner.triggerScan()">
+                <div class="scan-inner"></div>
             </div>
         </div>
-
-        <div class="toolbar-container">
-            <div id="sub-menu" class="interactive">
-                <button class="sub-btn" onclick="app.tools.setShape('box')">⬜</button>
-                <button class="sub-btn" onclick="app.tools.setShape('sphere')">⚪</button>
-                <button class="sub-btn" onclick="app.tools.setShape('cylinder')">🛢️</button>
-                <button class="sub-btn" onclick="app.tools.setShape('cone')">🔺</button>
-            </div>
-
-            <div class="toolbar interactive">
-                <button class="icon-btn active" id="mode-place" onclick="app.setMode('place')">＋</button>
-                <button class="icon-btn" id="mode-draw" onclick="app.setMode('draw')">✏️</button>
-                <button class="icon-btn" id="mode-text" onclick="app.setMode('text')">Aa</button>
-                <button class="icon-btn" id="mode-select" onclick="app.setMode('select')">👆</button>
-                <button class="icon-btn" id="mode-color" onclick="app.tools.cycleColor()">🎨</button>
-            </div>
-
-            <div id="ar-prompt" class="interactive"></div>
-        </div>
+        
+        <div id="ar-prompt" style="pointer-events:auto; position:absolute; bottom:10px; left:50%; transform:translateX(-50%);"></div>
     </div>
-
-    <div id="text-modal">
-        <div class="modal-card">
-            <h3 style="margin:0; color:white;">Add 3D Text</h3>
-            <input type="text" class="modal-input" id="text-input" placeholder="Enter text...">
-            <div class="btn-group">
-                <button class="primary-btn" style="background:#444;" onclick="document.getElementById('text-modal').style.display='none'">Cancel</button>
-                <button class="primary-btn" onclick="app.tools.confirmText()">Create</button>
-            </div>
-        </div>
-    </div>
-
-    <input type="file" id="file-input" accept="image/*">
-
-    <div id="toast">Notification</div>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
-        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
-
-        /* --- APP CONTROLLER --- */
+        
+        // --- GLOBAL APP CONTROLLER ---
         class App {
             constructor() {
-                this.state = { mode: 'place', shape: 'box', color: 0x007AFF, brushSize: 0.005 };
+                this.state = {
+                    scanning: false,
+                    selectedObject: null, // The 3D object wrapper
+                    aiReady: false,
+                    arReady: false
+                };
+
+                // Modules
                 this.sceneMgr = new SceneManager(this);
-                this.tools = new ToolManager(this);
-                this.editor = new EditorManager(this);
-                this.persistence = new PersistenceManager(this);
-                this.camera = new CameraManager(this);
+                this.ai = new VisionManager(this);
+                this.scanner = new ScannerManager(this);
                 this.io = new IOManager(this);
-                
+
                 this.init();
             }
 
-            init() {
+            async init() {
+                this.io.log("System Boot...");
+                await this.ai.loadModel();
                 this.sceneMgr.init();
-                this.sceneMgr.animate();
-            }
-
-            setMode(mode) {
-                this.state.mode = mode;
-                this.io.updateToolbar(mode);
-                
-                // Show sub-menu only for placement
-                const sub = document.getElementById('sub-menu');
-                if(mode === 'place') sub.classList.add('visible');
-                else sub.classList.remove('visible');
-
-                // Clear selection if leaving select mode
-                if(mode !== 'select') this.editor.deselect();
-
-                // Open Text Modal immediately if Text Mode
-                if(mode === 'text') document.getElementById('text-modal').style.display = 'flex';
             }
         }
 
-        /* --- SCENE MANAGER (Three.js & WebXR) --- */
+        // --- SCENE MANAGER (THREE.JS + WEBXR) ---
         class SceneManager {
             constructor(app) {
                 this.app = app;
-                this.objects = []; 
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.reticle = null;
                 this.hitTestSource = null;
-                this.hitTestSourceRequested = false;
             }
 
             init() {
                 this.scene = new THREE.Scene();
                 this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
                 
-                // Optimized Lighting
+                // Light setup for realistic twins
                 const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
-                hemi.position.set(0,1,0);
                 this.scene.add(hemi);
-
-                const dir = new THREE.DirectionalLight(0xffffff, 1.5);
-                dir.position.set(5,10,7);
-                dir.castShadow = true;
+                const dir = new THREE.DirectionalLight(0xffffff, 2);
+                dir.position.set(2, 5, 2);
                 this.scene.add(dir);
 
-                // Renderer with Screenshot Support
-                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.xr.enabled = true;
-                this.renderer.shadowMap.enabled = true;
                 document.body.appendChild(this.renderer.domElement);
 
                 // AR Button
-                const btn = ARButton.createButton(this.renderer, { requiredFeatures: ['hit-test', 'dom-overlay'], domOverlay: { root: document.getElementById('ui-layer') } });
-                document.getElementById('ar-prompt').appendChild(btn);
-
-                // Controller
-                this.controller = this.renderer.xr.getController(0);
-                this.controller.addEventListener('selectstart', () => this.onSelectStart());
-                this.controller.addEventListener('selectend', () => this.onSelectEnd());
-                this.scene.add(this.controller);
+                const arBtn = ARButton.createButton(this.renderer, { 
+                    requiredFeatures: ['hit-test', 'dom-overlay'], 
+                    domOverlay: { root: document.getElementById('ui-layer') } 
+                });
+                document.getElementById('ar-prompt').appendChild(arBtn);
 
                 // Reticle
-                this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.15,0.2,32).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({color:0xffffff, opacity:0.8, transparent:true}));
-                this.reticle.matrixAutoUpdate = false;
+                this.reticle = new THREE.Mesh(
+                    new THREE.RingGeometry(0.1, 0.11, 32).rotateX(-Math.PI/2),
+                    new THREE.MeshBasicMaterial({ color: 0x00E5FF })
+                );
                 this.reticle.visible = false;
                 this.scene.add(this.reticle);
 
-                // Shadow Plane
-                const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(20,20).rotateX(-Math.PI/2), new THREE.ShadowMaterial({opacity:0.3}));
-                shadowPlane.receiveShadow = true;
-                this.scene.add(shadowPlane);
+                // Start Loop
+                this.renderer.setAnimationLoop((t, f) => this.render(t, f));
             }
 
-            onSelectStart() {
-                if(this.app.state.mode === 'draw') this.app.tools.startDrawing();
-            }
+            render(timestamp, frame) {
+                if(frame) {
+                    this.handleHitTest(frame);
+                    
+                    // Update AI detection on video frame (Throttled)
+                    if(this.app.ai.model && timestamp % 30 < 2) {
+                        // We can't access raw camera feed easily in WebXR for TFJS without constraints
+                        // For this demo, we assume the user is looking through the device
+                        // Note: Realtime TFJS in WebXR requires getting the WebGL texture
+                    }
+                }
 
-            onSelectEnd() {
-                const mode = this.app.state.mode;
-                if(mode === 'place' && this.reticle.visible) this.app.tools.createPrimitive();
-                else if(mode === 'draw') this.app.tools.endDrawing();
-                else if(mode === 'select') this.app.editor.handleTap();
-            }
-
-            animate() {
-                this.renderer.setAnimationLoop((time, frame) => {
-                    if(frame) this.handleHitTest(frame);
-                    if(this.app.state.mode === 'draw') this.app.tools.updateDrawing();
-                    this.renderer.render(this.scene, this.camera);
-                });
+                // Animate Scanner
+                this.app.scanner.update(timestamp);
+                
+                this.renderer.render(this.scene, this.camera);
             }
 
             handleHitTest(frame) {
-                const refSpace = this.renderer.xr.getReferenceSpace();
                 const session = this.renderer.xr.getSession();
+                const refSpace = this.renderer.xr.getReferenceSpace();
 
-                if(!this.hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then(ref => session.requestHitTestSource({space:ref}).then(src => this.hitTestSource = src));
-                    session.addEventListener('end', () => { this.hitTestSourceRequested=false; this.hitTestSource=null; });
+                if (!this.hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then(ref => {
+                        session.requestHitTestSource({ space: ref }).then(src => this.hitTestSource = src);
+                    });
                     this.hitTestSourceRequested = true;
                 }
 
-                if(this.hitTestSource) {
+                if (this.hitTestSource) {
                     const hits = frame.getHitTestResults(this.hitTestSource);
-                    if(hits.length > 0) {
+                    if (hits.length > 0) {
                         const hit = hits[0];
+                        const pose = hit.getPose(refSpace);
                         this.reticle.visible = true;
-                        this.reticle.matrix.fromArray(hit.getPose(refSpace).transform.matrix);
-                        this.app.io.setStatus(true);
+                        this.reticle.matrix.fromArray(pose.transform.matrix);
                     } else {
                         this.reticle.visible = false;
-                        this.app.io.setStatus(false);
                     }
                 }
             }
         }
 
-        /* --- TOOL MANAGER (Creation Logic) --- */
-        class ToolManager {
-            constructor(app) { 
+        // --- VISION MANAGER (TENSORFLOW.JS) ---
+        class VisionManager {
+            constructor(app) {
                 this.app = app;
-                this.font = null;
-                new FontLoader().load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json', f => this.font = f);
-                this.currentLine = null;
+                this.model = null;
+                this.video = null;
+                this.isDetecting = false;
             }
 
-            setShape(s) { this.app.state.shape = s; this.app.io.toast(`Shape: ${s}`); }
-
-            cycleColor() {
-                this.app.state.color = Math.random() * 0xffffff;
-                document.getElementById('mode-color').style.color = '#' + this.app.state.color.toString(16);
-                this.app.io.toast("Color Changed");
-            }
-
-            createPrimitive() {
-                let geo;
-                const s = this.app.state.shape;
-                if(s==='box') geo = new THREE.BoxGeometry(0.2,0.2,0.2);
-                else if(s==='sphere') geo = new THREE.SphereGeometry(0.12,32,16);
-                else if(s==='cylinder') geo = new THREE.CylinderGeometry(0.1,0.1,0.2,32);
-                else if(s==='cone') geo = new THREE.ConeGeometry(0.1,0.2,32);
-
-                const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:this.app.state.color, roughness:0.2, metalness:0.1}));
-                this.placeObject(mesh, 'primitive', {shape: s});
-            }
-
-            confirmText() {
-                const txt = document.getElementById('text-input').value;
-                document.getElementById('text-modal').style.display = 'none';
-                if(!txt || !this.app.sceneMgr.reticle.visible) return this.app.io.toast("Surface not found");
-
-                const geo = new TextGeometry(txt, { font:this.font, size:0.08, height:0.01 });
-                geo.computeBoundingBox();
-                geo.translate(-0.5*(geo.boundingBox.max.x-geo.boundingBox.min.x), 0, 0);
-
-                const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:this.app.state.color}));
-                this.placeObject(mesh, 'text', {text: txt});
-            }
-
-            placeObject(mesh, type, meta) {
-                const reticle = this.app.sceneMgr.reticle;
-                reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-                mesh.position.y += 0.05;
-                mesh.castShadow = true;
-                mesh.userData = { ...meta, type: type, color: this.app.state.color };
-                
-                this.app.sceneMgr.scene.add(mesh);
-                this.app.sceneMgr.objects.push(mesh);
-                
-                // Pop animation
-                mesh.scale.set(0,0,0);
-                let s=0; const i = setInterval(()=>{ s+=0.1; mesh.scale.set(s,s,s); if(s>=1) clearInterval(i); }, 16);
-            }
-
-            // Drawing Logic
-            startDrawing() {
-                const geo = new THREE.BufferGeometry();
-                geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3000*3), 3));
-                geo.setDrawRange(0,0);
-                const mat = new THREE.LineBasicMaterial({color:this.app.state.color, linewidth:3});
-                this.currentLine = new THREE.Line(geo, mat);
-                this.currentLine.userData = {count:0, type:'drawing'};
-                this.app.sceneMgr.scene.add(this.currentLine);
-            }
-
-            updateDrawing() {
-                if(!this.currentLine) return;
-                const pos = this.app.sceneMgr.controller.position;
-                const attr = this.currentLine.geometry.attributes.position;
-                const count = this.currentLine.userData.count;
-                if(count < 3000) {
-                    attr.setXYZ(count, pos.x, pos.y, pos.z);
-                    this.currentLine.userData.count++;
-                    this.currentLine.geometry.setDrawRange(0, count);
-                    attr.needsUpdate = true;
+            async loadModel() {
+                this.app.io.log("Loading AI Model (COCO-SSD)...");
+                // Dynamically import global objects
+                if(window.cocoSsd) {
+                    this.model = await cocoSsd.load();
+                    this.app.state.aiReady = true;
+                    this.app.io.updateStatus(true, "AI Active");
+                    this.app.io.log("AI Model Loaded. Starting Vision...");
+                    this.startDetectionLoop();
+                } else {
+                    setTimeout(() => this.loadModel(), 500); // Retry
                 }
             }
 
-            endDrawing() {
-                if(this.currentLine) {
-                    this.app.sceneMgr.objects.push(this.currentLine);
-                    this.currentLine = null;
+            async startDetectionLoop() {
+                // In a browser WebXR session, we don't always get direct access to the camera stream for TFJS
+                // So we fallback to standard getUserMedia for the "Pass-through" simulation or 
+                // run detection on the canvas if possible. 
+                // *Critical Fix for Production*: WebXR obscures the video element. 
+                // We will create a background video element to run detection on.
+                
+                this.video = document.createElement('video');
+                this.video.style.display = 'none';
+                
+                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: 'environment' } 
+                    });
+                    this.video.srcObject = stream;
+                    this.video.play();
+                    
+                    // Detection Interval
+                    setInterval(async () => {
+                        if(this.app.state.aiReady && !this.app.state.scanning) {
+                            const predictions = await this.model.detect(this.video);
+                            this.drawBoundingBoxes(predictions);
+                        }
+                    }, 500); // Check every 500ms
                 }
             }
-        }
 
-        /* --- EDITOR MANAGER (Selection & Modification) --- */
-        class EditorManager {
-            constructor(app) { this.app = app; this.selected = null; }
+            drawBoundingBoxes(predictions) {
+                const layer = document.getElementById('bbox-layer');
+                layer.innerHTML = ''; // Clear old
 
-            handleTap() {
-                const ctrlPos = this.app.sceneMgr.controller.position;
-                let closest=null, min=0.5;
-                
-                this.app.sceneMgr.objects.forEach(o => {
-                    if(o.userData.type === 'drawing') return; // Skip drawings
-                    const d = o.position.distanceTo(ctrlPos);
-                    if(d < min) { min = d; closest = o; }
-                });
+                // Screen Scaling factors
+                const scaleX = window.innerWidth / this.video.videoWidth;
+                const scaleY = window.innerHeight / this.video.videoHeight;
 
-                if(closest) this.select(closest);
-                else this.deselect();
-            }
-
-            select(obj) {
-                this.deselect();
-                this.selected = obj;
-                this.selected.material.emissive.setHex(0x555555);
-                
-                const insp = document.getElementById('inspector');
-                insp.classList.add('visible');
-                
-                // Sync UI
-                document.getElementById('sl-scale').value = obj.scale.x;
-                document.getElementById('sl-rot').value = obj.rotation.y;
-                document.getElementById('sl-y').value = obj.position.y;
-            }
-
-            deselect() {
-                if(this.selected) {
-                    this.selected.material.emissive.setHex(0x000000);
-                    this.selected = null;
-                }
-                document.getElementById('inspector').classList.remove('visible');
-            }
-
-            updateTransform() {
-                if(!this.selected) return;
-                const s = parseFloat(document.getElementById('sl-scale').value);
-                const r = parseFloat(document.getElementById('sl-rot').value);
-                const y = parseFloat(document.getElementById('sl-y').value);
-                this.selected.scale.set(s,s,s);
-                this.selected.rotation.y = r;
-                this.selected.position.y = y;
-            }
-
-            setMaterial(type, btn) {
-                if(!this.selected) return;
-                document.querySelectorAll('.mat-btn').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                
-                const col = this.selected.material.color;
-                if(type === 'plastic') this.selected.material = new THREE.MeshStandardMaterial({color:col, roughness:0.5});
-                if(type === 'metal') this.selected.material = new THREE.MeshStandardMaterial({color:col, roughness:0.1, metalness:1});
-                if(type === 'glow') this.selected.material = new THREE.MeshBasicMaterial({color:col});
-                this.selected.material.emissive = new THREE.Color(0x555555); // Maintain selection highlight
-            }
-
-            triggerTextureUpload() {
-                const input = document.getElementById('file-input');
-                input.onchange = (e) => {
-                    const file = e.target.files[0];
-                    if(file && this.selected) {
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                            new THREE.TextureLoader().load(ev.target.result, (tex) => {
-                                this.selected.material = new THREE.MeshStandardMaterial({map: tex});
-                            });
+                predictions.forEach(p => {
+                    if(p.score > 0.6) { // Confidence threshold
+                        const div = document.createElement('div');
+                        div.className = 'bbox';
+                        // Math to map video coords to screen coords
+                        div.style.left = (p.bbox[0] * scaleX) + 'px';
+                        div.style.top = (p.bbox[1] * scaleY) + 'px';
+                        div.style.width = (p.bbox[2] * scaleX) + 'px';
+                        div.style.height = (p.bbox[3] * scaleY) + 'px';
+                        
+                        // Label
+                        div.innerHTML = `<div class="bbox-label">${p.class} ${(p.score*100).toFixed(0)}%</div>`;
+                        
+                        // Interaction
+                        div.ontouchstart = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation(); // Stop click passing through
+                            this.app.scanner.selectTarget(p.class);
                         };
-                        reader.readAsDataURL(file);
-                    }
-                };
-                input.click();
-            }
+                        div.onclick = (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            this.app.scanner.selectTarget(p.class);
+                        };
 
-            deleteSelected() {
-                if(this.selected) {
-                    this.app.sceneMgr.scene.remove(this.selected);
-                    this.app.sceneMgr.objects = this.app.sceneMgr.objects.filter(o => o !== this.selected);
-                    this.deselect();
-                }
-            }
-        }
-
-        /* --- PERSISTENCE & CAMERA --- */
-        class PersistenceManager {
-            constructor(app) { this.app = app; }
-            
-            save() {
-                const data = this.app.sceneMgr.objects.map(o => ({
-                    type: o.userData.type,
-                    meta: o.userData,
-                    transform: { pos: o.position.toArray(), rot: o.rotation.toArray(), scl: o.scale.toArray() }
-                }));
-                localStorage.setItem('ar_scene', JSON.stringify(data));
-                this.app.io.toast("Scene Saved to Storage");
-            }
-
-            load() {
-                const json = localStorage.getItem('ar_scene');
-                if(!json) return this.app.io.toast("No Save Found");
-                
-                // Clear Scene
-                this.app.sceneMgr.objects.forEach(o => this.app.sceneMgr.scene.remove(o));
-                this.app.sceneMgr.objects = [];
-
-                JSON.parse(json).forEach(item => {
-                    // Recreate based on type
-                    if(item.type === 'primitive') {
-                        this.app.state.shape = item.meta.shape;
-                        this.app.state.color = item.meta.color;
-                        // Mock placement
-                        const dummyMesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()); // placeholder
-                        dummyMesh.position.fromArray(item.transform.pos);
-                        dummyMesh.rotation.fromArray(item.transform.rot);
-                        dummyMesh.scale.fromArray(item.transform.scl);
-                        
-                        // Use tool manager logic to properly create geometry
-                        this.app.sceneMgr.reticle.matrix.compose(dummyMesh.position, dummyMesh.quaternion, dummyMesh.scale);
-                        this.app.tools.createPrimitive(); // Will use current reticle transform, so this is tricky.
-                        
-                        // Better approach: Direct reconstruction
-                        let geo;
-                        if(item.meta.shape==='box') geo = new THREE.BoxGeometry(0.2,0.2,0.2);
-                        if(item.meta.shape==='sphere') geo = new THREE.SphereGeometry(0.12,32,16);
-                        // ... others
-                        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color: item.meta.color}));
-                        mesh.position.fromArray(item.transform.pos);
-                        mesh.rotation.fromArray(item.transform.rot);
-                        mesh.scale.fromArray(item.transform.scl);
-                        mesh.userData = item.meta;
-                        this.app.sceneMgr.scene.add(mesh);
-                        this.app.sceneMgr.objects.push(mesh);
+                        layer.appendChild(div);
                     }
                 });
-                this.app.io.toast("Scene Loaded");
             }
         }
 
-        class CameraManager {
-            constructor(app) { this.app = app; }
-            snap() {
-                this.app.sceneMgr.renderer.render(this.app.sceneMgr.scene, this.app.sceneMgr.camera);
-                const data = this.app.sceneMgr.renderer.domElement.toDataURL('image/png');
-                const a = document.createElement('a');
-                a.href = data; a.download = 'ar_snap.png'; a.click();
+        // --- SCANNER MANAGER (LOGIC & TWIN GEN) ---
+        class ScannerManager {
+            constructor(app) {
+                this.app = app;
+                this.scanTarget = null; // Mesh
+                this.scanBox = null;    // Visual Box
+                this.scanLaser = null;  // Laser Plane
+            }
+
+            selectTarget(className) {
+                this.app.io.log(`Target Selected: ${className.toUpperCase()}`);
+                this.app.io.updateMessage(`Tap SCAN to digitize ${className}`);
+                
+                // Remove Detection Boxes to clean UI
+                document.getElementById('bbox-layer').innerHTML = '';
+                
+                // Place the "Scanner Box" at the Reticle position (Real World Location)
+                if(this.app.sceneMgr.reticle.visible) {
+                    this.createScannerBox(this.app.sceneMgr.reticle.matrix);
+                } else {
+                    this.app.io.log("Error: No Surface Detected. Look at floor.");
+                }
+            }
+
+            createScannerBox(matrix) {
+                if(this.scanBox) this.app.sceneMgr.scene.remove(this.scanBox);
+
+                // 1. The Wireframe Box
+                const geo = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+                const mat = new THREE.MeshBasicMaterial({ color: 0x00E5FF, wireframe: true });
+                this.scanBox = new THREE.Mesh(geo, mat);
+                
+                // Position it
+                this.scanBox.position.setFromMatrixPosition(matrix);
+                this.scanBox.quaternion.setFromRotationMatrix(matrix);
+                this.scanBox.position.y += 0.25; // Sit on floor
+                
+                this.app.sceneMgr.scene.add(this.scanBox);
+
+                // 2. The Laser Plane
+                const laserGeo = new THREE.PlaneGeometry(0.5, 0.5);
+                const laserMat = new THREE.MeshBasicMaterial({ color: 0xFF3B30, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
+                this.scanLaser = new THREE.Mesh(laserGeo, laserMat);
+                this.scanLaser.rotation.x = Math.PI / 2;
+                this.scanBox.add(this.scanLaser); // Child of box
+            }
+
+            triggerScan() {
+                if(!this.scanBox) return this.app.io.log("Select an object first!");
+                if(this.app.state.scanning) return;
+
+                this.app.state.scanning = true;
+                this.app.io.log("Scanning Object Surface...");
+                
+                // UI Animation
+                document.querySelector('.scan-progress').style.display = 'block';
+                document.getElementById('trigger-btn').style.opacity = '0.5';
+
+                // Simulate Scan Process (2 Seconds)
+                let progress = 0;
+                const interval = setInterval(() => {
+                    progress += 2;
+                    document.getElementById('scan-bar').style.width = progress + '%';
+                    
+                    // Move Laser
+                    if(this.scanLaser) {
+                        this.scanLaser.position.y = Math.sin(progress/10) * 0.2;
+                    }
+
+                    if(progress >= 100) {
+                        clearInterval(interval);
+                        this.finalizeTwin();
+                    }
+                }, 30);
+            }
+
+            finalizeTwin() {
+                this.app.state.scanning = false;
+                this.app.io.log("Processing Point Cloud...");
+                this.app.io.updateMessage("Digital Twin Created");
+
+                // Remove Scanner visuals
+                this.app.sceneMgr.scene.remove(this.scanBox);
+                this.scanBox = null;
+                document.querySelector('.scan-progress').style.display = 'none';
+                document.getElementById('trigger-btn').style.opacity = '1';
+
+                // GENERATE DIGITAL TWIN
+                // In a real app, we would use the camera texture. 
+                // Here we generate a High-Detail Procedural Mesh to represent the twin.
+                
+                const detail = 64; // High vertex count
+                const geometry = new THREE.IcosahedronGeometry(0.25, 10); // Detailed sphere/blob
+                
+                // Add Noise to vertices to make it look "scanned" and organic
+                const pos = geometry.attributes.position;
+                for(let i=0; i<pos.count; i++){
+                    pos.setY(i, pos.getY(i) + (Math.random()*0.02)); 
+                }
+                geometry.computeVertexNormals();
+
+                // Advanced Material (Wireframe over Solid)
+                const material = new THREE.MeshStandardMaterial({ 
+                    color: 0x00E5FF, 
+                    metalness: 0.8, 
+                    roughness: 0.2,
+                    wireframe: false,
+                    flatShading: false
+                });
+
+                const twin = new THREE.Mesh(geometry, material);
+                
+                // Anchor to where the scanner was
+                // We need to re-find the position or save it. 
+                // Currently using last reticle pos or camera front
+                if(this.app.sceneMgr.reticle) {
+                    twin.position.copy(this.app.sceneMgr.reticle.position);
+                    twin.position.y += 0.25;
+                }
+                
+                this.app.sceneMgr.scene.add(twin);
+                
+                // Particle Explosion Effect (Completion)
+                this.createParticles(twin.position);
+            }
+            
+            createParticles(pos) {
+                // Simple particle burst
+                const count = 50;
+                const geo = new THREE.BufferGeometry();
+                const posArray = new Float32Array(count * 3);
+                
+                for(let i=0; i<count*3; i++) {
+                    posArray[i] = (Math.random() - 0.5) * 0.5;
+                }
+                geo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+                
+                const mat = new THREE.PointsMaterial({color: 0xffffff, size: 0.02});
+                const sys = new THREE.Points(geo, mat);
+                sys.position.copy(pos);
+                this.app.sceneMgr.scene.add(sys);
+                
+                // Animate removal
+                setTimeout(() => this.app.sceneMgr.scene.remove(sys), 1000);
+            }
+
+            update(t) {
+                // Animation loop updates
             }
         }
 
-        /* --- IO / UI HELPER --- */
+        // --- IO MANAGER ---
         class IOManager {
             constructor(app) { this.app = app; }
-            
-            setStatus(ready) {
-                const dot = document.getElementById('status-dot');
-                const txt = document.getElementById('status-text');
-                if(ready) { dot.classList.add('ready'); txt.innerText = "Ready"; }
-                else { dot.classList.remove('ready'); txt.innerText = "Scanning..."; }
-            }
-
-            updateToolbar(mode) {
-                document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById('mode-'+mode).classList.add('active');
-            }
-
-            toast(msg) {
-                const t = document.getElementById('toast');
-                t.innerText = msg; t.style.opacity=1;
-                setTimeout(()=>t.style.opacity=0, 2000);
-            }
-
-            undo() {
-                const objs = this.app.sceneMgr.objects;
-                if(objs.length>0) {
-                    const last = objs.pop();
-                    this.app.sceneMgr.scene.remove(last);
-                    this.toast("Undo");
-                }
-            }
-        }
-
-        // --- PREVENT GHOST CLICKS ---
-        document.querySelectorAll('button, input').forEach(el => el.addEventListener('beforexrselect', e => e.preventDefault()));
-
-        // --- START ---
-        window.app = new App();
-
-    </script>
-</body>
-</html>
+            log(msg) { 
+                console.log(msg
