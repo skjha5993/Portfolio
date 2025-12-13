@@ -3,135 +3,84 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>AR Vision Studio 3.0</title>
+    <title>AR Architect Pro | v3.1 Final</title>
 
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     
     <style>
-        /* --- SYSTEM RESET & VARIABLES --- */
+        /* --- CORE VARIABLES --- */
         :root {
-            --glass: rgba(30, 30, 30, 0.65);
-            --glass-border: rgba(255, 255, 255, 0.12);
-            --accent: #0A84FF;
-            --accent-glow: rgba(10, 132, 255, 0.4);
-            --danger: #FF453A;
+            --glass: rgba(20, 20, 20, 0.85);
+            --glass-light: rgba(255, 255, 255, 0.1);
+            --accent: #007AFF;
+            --accent-glow: rgba(0, 122, 255, 0.5);
+            --danger: #FF3B30;
+            --success: #34C759;
             --text: #ffffff;
-            --radius: 24px;
+            --radius: 20px;
         }
 
+        /* --- GLOBAL RESET --- */
         * { box-sizing: border-box; touch-action: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+        body { margin: 0; overflow: hidden; background: #000; font-family: 'Inter', sans-serif; color: var(--text); }
+
+        /* --- UI LAYERS --- */
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between; }
+        .interactive { pointer-events: auto; }
+
+        /* --- HEADER & TOP BAR --- */
+        .header { padding: 16px; display: flex; justify-content: space-between; background: linear-gradient(180deg, rgba(0,0,0,0.8), transparent); }
+        .status-badge { padding: 6px 12px; background: rgba(255,255,255,0.15); border-radius: 20px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px; backdrop-filter: blur(10px); }
+        .status-dot { width: 8px; height: 8px; background: #FFD60A; border-radius: 50%; }
+        .status-dot.ready { background: #32D74B; box-shadow: 0 0 8px #32D74B; }
         
-        body {
-            margin: 0; overflow: hidden; background: #000;
-            font-family: 'Inter', sans-serif;
-            color: var(--text);
-        }
-
-        /* --- 3D CANVAS LAYER --- */
-        #ar-canvas {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            display: block; outline: none; z-index: 1;
-        }
-
-        /* --- UI OVERLAY LAYER --- */
-        #ui-layer {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            z-index: 100; pointer-events: none; /* Let touches hit canvas by default */
-            display: flex; flex-direction: column; justify-content: space-between;
-        }
-
-        /* --- COMMON UI STYLES --- */
-        .glass-panel {
-            background: var(--glass); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
-            border: 1px solid var(--glass-border);
-            pointer-events: auto; /* Re-enable clicks for UI elements */
-            transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
-        }
-
-        .icon-btn {
-            background: transparent; border: none; color: rgba(255,255,255,0.7);
-            width: 44px; height: 44px; border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; cursor: pointer; transition: all 0.2s;
-        }
-        .icon-btn:active { transform: scale(0.9); background: rgba(255,255,255,0.1); }
-        .icon-btn.active { color: white; background: var(--accent); box-shadow: 0 0 15px var(--accent-glow); }
-
-        /* --- TOP HEADER --- */
-        .header {
-            padding: 16px 20px;
-            display: flex; justify-content: space-between; align-items: center;
-            background: linear-gradient(180deg, rgba(0,0,0,0.8) 0%, transparent 100%);
-            pointer-events: auto;
-        }
-        .status-pill {
-            padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
-            background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.1);
-            display: flex; align-items: center; gap: 6px;
-        }
-        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #ffcc00; }
-        .status-dot.active { background: #32d74b; box-shadow: 0 0 8px #32d74b; }
+        /* --- BUTTON STYLES --- */
+        .btn-group { display: flex; gap: 10px; }
+        .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: none; background: var(--glass); color: white; display: flex; align-items: center; justify-content: center; font-size: 18px; backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.1); transition: all 0.2s; }
+        .icon-btn:active { transform: scale(0.92); background: rgba(255,255,255,0.2); }
+        .icon-btn.active { background: var(--accent); border-color: transparent; box-shadow: 0 0 12px var(--accent-glow); }
 
         /* --- INSPECTOR PANEL (Bottom Sheet) --- */
         #inspector {
-            position: absolute; bottom: 120px; left: 50%; transform: translateX(-50%) translateY(20px);
-            width: 90%; max-width: 400px; padding: 20px; border-radius: var(--radius);
-            display: flex; flex-direction: column; gap: 16px;
-            opacity: 0; pointer-events: none;
+            position: absolute; bottom: 130px; left: 50%; transform: translateX(-50%) translateY(20px);
+            width: 90%; max-width: 400px; background: var(--glass); backdrop-filter: blur(20px);
+            padding: 20px; border-radius: var(--radius); opacity: 0; pointer-events: none;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            border: 1px solid rgba(255,255,255,0.1);
+            display: flex; flex-direction: column; gap: 14px;
         }
         #inspector.visible { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
 
-        .inspector-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-        .inspector-label { font-size: 13px; color: rgba(255,255,255,0.6); font-weight: 600; }
+        .row { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 13px; color: #ccc; }
+        .section-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #666; font-weight: 800; margin-bottom: 4px; }
         
-        input[type=range] {
-            flex-grow: 1; height: 4px; border-radius: 2px;
-            background: rgba(255,255,255,0.2); appearance: none;
-        }
-        input[type=range]::-webkit-slider-thumb {
-            appearance: none; width: 16px; height: 16px; border-radius: 50%;
-            background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-        }
+        /* Sliders */
+        input[type=range] { width: 100%; height: 4px; border-radius: 2px; background: rgba(255,255,255,0.2); appearance: none; }
+        input[type=range]::-webkit-slider-thumb { appearance: none; width: 18px; height: 18px; border-radius: 50%; background: white; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
 
-        /* Material Selector */
-        .mat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; }
-        .mat-btn {
-            padding: 8px; font-size: 11px; border-radius: 12px; background: rgba(255,255,255,0.1);
-            border: 1px solid transparent; color: white; cursor: pointer;
-        }
-        .mat-btn.active { background: var(--accent); border-color: rgba(255,255,255,0.5); }
-
+        /* Material Buttons */
+        .mat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+        .mat-btn { padding: 8px 0; background: rgba(255,255,255,0.1); border: none; color: white; border-radius: 8px; font-size: 11px; }
+        .mat-btn.active { background: var(--accent); }
+        
         /* --- MAIN TOOLBAR --- */
-        .toolbar-wrapper {
-            padding: 30px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px;
-            background: linear-gradient(0deg, rgba(0,0,0,0.9) 0%, transparent 100%);
-            pointer-events: none;
-        }
+        .toolbar-container { padding: 30px 20px; display: flex; flex-direction: column; align-items: center; gap: 12px; background: linear-gradient(transparent, rgba(0,0,0,0.9)); }
         
-        .toolbar {
-            display: flex; gap: 16px; padding: 10px 24px; border-radius: 40px;
-            pointer-events: auto;
-        }
+        .toolbar { display: flex; gap: 12px; padding: 10px 20px; background: var(--glass); border-radius: 40px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(20px); }
+        
+        #sub-menu { display: flex; gap: 8px; margin-bottom: 8px; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+        #sub-menu.visible { opacity: 1; pointer-events: auto; }
+        .sub-btn { width: 36px; height: 36px; border-radius: 10px; background: rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); font-size: 18px; }
 
-        /* Shape Picker (Sub-menu) */
-        #shape-picker {
-            display: flex; gap: 10px; padding: 8px; border-radius: 16px;
-            margin-bottom: 8px; pointer-events: auto;
-            transform: scale(0.9); opacity: 0; transition: all 0.2s; pointer-events: none;
-        }
-        #shape-picker.visible { transform: scale(1); opacity: 1; pointer-events: auto; }
+        /* --- MODALS --- */
+        #text-modal { position: absolute; inset: 0; background: rgba(0,0,0,0.8); z-index: 200; display: none; align-items: center; justify-content: center; pointer-events: auto; }
+        .modal-card { background: #1a1a1a; padding: 24px; border-radius: 20px; width: 80%; max-width: 320px; text-align: center; }
+        .modal-input { width: 100%; padding: 12px; background: #333; border: none; color: white; border-radius: 10px; margin: 16px 0; font-size: 16px; }
+        .primary-btn { width: 100%; padding: 12px; background: var(--accent); border: none; color: white; border-radius: 10px; font-weight: 600; font-size: 14px; }
 
-        .shape-btn { width: 36px; height: 36px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); }
-
-        /* AR Trigger Button Area */
-        #ar-prompt { margin-top: 10px; pointer-events: auto; min-height: 40px; }
-
-        /* --- NOTIFICATION --- */
-        #toast {
-            position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 30px;
-            font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none;
-        }
+        /* --- UTILS --- */
+        #toast { position: absolute; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 30px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; white-space: nowrap; }
+        #file-input { display: none; }
     </style>
 
     <script type="importmap">
@@ -146,338 +95,313 @@
 <body>
 
     <div id="ui-layer">
-        <div class="header">
-            <div class="status-pill">
+        
+        <div class="header interactive">
+            <div class="status-badge">
                 <div class="status-dot" id="status-dot"></div>
-                <span id="status-text">Ready</span>
+                <span id="status-text">Scanning...</span>
             </div>
-            <div style="display:flex; gap:10px;">
-                <button class="icon-btn glass-panel" style="width:36px; height:36px; font-size:16px;" onclick="app.io.undo()" title="Undo">↩</button>
-                <button class="icon-btn glass-panel" style="width:36px; height:36px; font-size:16px;" onclick="app.io.export()" title="Save">💾</button>
+            <div class="btn-group">
+                <button class="icon-btn" onclick="app.persistence.load()" title="Load Scene">📂</button>
+                <button class="icon-btn" onclick="app.persistence.save()" title="Save Scene">💾</button>
+                <button class="icon-btn" onclick="app.camera.snap()" title="Take Screenshot">📷</button>
+                <button class="icon-btn" onclick="app.io.undo()" title="Undo">↩️</button>
             </div>
         </div>
 
-        <div id="inspector" class="glass-panel">
-            <div class="inspector-row">
-                <span class="inspector-label">EDIT OBJECT</span>
+        <div id="inspector" class="interactive">
+            <div class="row">
+                <div class="section-title">TRANSFORM</div>
                 <button class="icon-btn" style="width:24px; height:24px; background:var(--danger); font-size:12px;" onclick="app.editor.deleteSelected()">✕</button>
             </div>
-            
-            <div class="inspector-row">
-                <span class="inspector-label">Scale</span>
-                <input type="range" min="0.2" max="3.0" step="0.1" id="sl-scale" oninput="app.editor.updateTransform()">
-            </div>
-            <div class="inspector-row">
-                <span class="inspector-label">Rotate</span>
-                <input type="range" min="0" max="6.28" step="0.1" id="sl-rot" oninput="app.editor.updateTransform()">
-            </div>
-            <div class="inspector-row">
-                <span class="inspector-label">Lift</span>
-                <input type="range" min="0" max="1.5" step="0.05" id="sl-y" oninput="app.editor.updateTransform()">
-            </div>
+            <div class="row"><span>Scale</span> <input type="range" min="0.2" max="3" step="0.1" id="sl-scale" oninput="app.editor.updateTransform()"></div>
+            <div class="row"><span>Rotate</span> <input type="range" min="0" max="6.28" step="0.1" id="sl-rot" oninput="app.editor.updateTransform()"></div>
+            <div class="row"><span>Lift</span> <input type="range" min="0" max="1.5" step="0.05" id="sl-y" oninput="app.editor.updateTransform()"></div>
 
+            <div class="section-title" style="margin-top:8px;">MATERIAL</div>
             <div class="mat-grid">
                 <button class="mat-btn active" onclick="app.editor.setMaterial('plastic', this)">Plastic</button>
                 <button class="mat-btn" onclick="app.editor.setMaterial('metal', this)">Metal</button>
                 <button class="mat-btn" onclick="app.editor.setMaterial('glow', this)">Glow</button>
+                <button class="mat-btn" onclick="app.editor.triggerTextureUpload()">Image</button>
             </div>
         </div>
 
-        <div class="toolbar-wrapper">
-            <div id="shape-picker" class="glass-panel">
-                <button class="shape-btn" onclick="app.tools.setShape('box')">⬜</button>
-                <button class="shape-btn" onclick="app.tools.setShape('sphere')">⚪</button>
-                <button class="shape-btn" onclick="app.tools.setShape('cone')">🔺</button>
+        <div class="toolbar-container">
+            <div id="sub-menu" class="interactive">
+                <button class="sub-btn" onclick="app.tools.setShape('box')">⬜</button>
+                <button class="sub-btn" onclick="app.tools.setShape('sphere')">⚪</button>
+                <button class="sub-btn" onclick="app.tools.setShape('cylinder')">🛢️</button>
+                <button class="sub-btn" onclick="app.tools.setShape('cone')">🔺</button>
             </div>
 
-            <div class="toolbar glass-panel">
-                <button class="icon-btn active" id="tab-place" onclick="app.setMode('place')">＋</button>
-                <button class="icon-btn" id="tab-select" onclick="app.setMode('select')">👆</button>
-                <button class="icon-btn" id="tab-color" onclick="app.tools.cycleColor()">🎨</button>
+            <div class="toolbar interactive">
+                <button class="icon-btn active" id="mode-place" onclick="app.setMode('place')">＋</button>
+                <button class="icon-btn" id="mode-draw" onclick="app.setMode('draw')">✏️</button>
+                <button class="icon-btn" id="mode-text" onclick="app.setMode('text')">Aa</button>
+                <button class="icon-btn" id="mode-select" onclick="app.setMode('select')">👆</button>
+                <button class="icon-btn" id="mode-color" onclick="app.tools.cycleColor()">🎨</button>
             </div>
 
-            <div id="ar-prompt"></div>
+            <div id="ar-prompt" class="interactive"></div>
         </div>
     </div>
+
+    <div id="text-modal">
+        <div class="modal-card">
+            <h3 style="margin:0; color:white;">Add 3D Text</h3>
+            <input type="text" class="modal-input" id="text-input" placeholder="Enter text...">
+            <div class="btn-group">
+                <button class="primary-btn" style="background:#444;" onclick="document.getElementById('text-modal').style.display='none'">Cancel</button>
+                <button class="primary-btn" onclick="app.tools.confirmText()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" id="file-input" accept="image/*">
 
     <div id="toast">Notification</div>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
-        /* * APP ARCHITECTURE: SINGLETON PATTERN
-         * Centralizes logic to prevent state conflicts
-         */
+        /* --- APP CONTROLLER --- */
         class App {
             constructor() {
-                this.state = {
-                    mode: 'place', // 'place' | 'select'
-                    currentShape: 'box',
-                    currentColor: 0x0A84FF,
-                    sessionActive: false
-                };
-
+                this.state = { mode: 'place', shape: 'box', color: 0x007AFF, brushSize: 0.005 };
                 this.sceneMgr = new SceneManager(this);
                 this.tools = new ToolManager(this);
                 this.editor = new EditorManager(this);
+                this.persistence = new PersistenceManager(this);
+                this.camera = new CameraManager(this);
                 this.io = new IOManager(this);
-
+                
                 this.init();
             }
 
             init() {
                 this.sceneMgr.init();
-                this.animate();
+                this.sceneMgr.animate();
             }
 
             setMode(mode) {
                 this.state.mode = mode;
-                this.io.updateUI(mode);
+                this.io.updateToolbar(mode);
                 
-                // Hide inspector if leaving select mode
-                if(mode !== 'select') this.editor.deselect();
-                
-                // Show shape picker only in place mode
-                const shapePicker = document.getElementById('shape-picker');
-                if(mode === 'place') shapePicker.classList.add('visible');
-                else shapePicker.classList.remove('visible');
-            }
+                // Show sub-menu only for placement
+                const sub = document.getElementById('sub-menu');
+                if(mode === 'place') sub.classList.add('visible');
+                else sub.classList.remove('visible');
 
-            animate() {
-                this.sceneMgr.renderer.setAnimationLoop((timestamp, frame) => {
-                    this.sceneMgr.render(timestamp, frame);
-                });
+                // Clear selection if leaving select mode
+                if(mode !== 'select') this.editor.deselect();
+
+                // Open Text Modal immediately if Text Mode
+                if(mode === 'text') document.getElementById('text-modal').style.display = 'flex';
             }
         }
 
-        /* * SCENE MANAGER: Handles Three.js, WebXR, and Rendering 
-         */
+        /* --- SCENE MANAGER (Three.js & WebXR) --- */
         class SceneManager {
             constructor(app) {
                 this.app = app;
-                this.objects = [];
+                this.objects = []; 
                 this.hitTestSource = null;
                 this.hitTestSourceRequested = false;
             }
 
             init() {
-                // 1. Scene Setup
                 this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.01, 20);
+                
+                // Optimized Lighting
+                const hemi = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
+                hemi.position.set(0,1,0);
+                this.scene.add(hemi);
 
-                // 2. Camera
-                this.camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
+                const dir = new THREE.DirectionalLight(0xffffff, 1.5);
+                dir.position.set(5,10,7);
+                dir.castShadow = true;
+                this.scene.add(dir);
 
-                // 3. Lighting (Optimized for Realism)
-                const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
-                hemiLight.position.set(0, 1, 0);
-                this.scene.add(hemiLight);
-
-                const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-                dirLight.position.set(5, 10, 7.5);
-                dirLight.castShadow = true; // Enable shadows
-                dirLight.shadow.mapSize.width = 1024;
-                dirLight.shadow.mapSize.height = 1024;
-                this.scene.add(dirLight);
-
-                // 4. Renderer
-                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                // Renderer with Screenshot Support
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
                 this.renderer.setPixelRatio(window.devicePixelRatio);
                 this.renderer.setSize(window.innerWidth, window.innerHeight);
                 this.renderer.xr.enabled = true;
-                this.renderer.shadowMap.enabled = true; // Enable Shadow Map
+                this.renderer.shadowMap.enabled = true;
                 document.body.appendChild(this.renderer.domElement);
 
-                // 5. AR Button
-                const arBtn = ARButton.createButton(this.renderer, { 
-                    requiredFeatures: ['hit-test', 'dom-overlay'], 
-                    domOverlay: { root: document.getElementById('ui-layer') } 
-                });
-                document.getElementById('ar-prompt').appendChild(arBtn);
+                // AR Button
+                const btn = ARButton.createButton(this.renderer, { requiredFeatures: ['hit-test', 'dom-overlay'], domOverlay: { root: document.getElementById('ui-layer') } });
+                document.getElementById('ar-prompt').appendChild(btn);
 
-                // 6. Controller (Raycasting Source)
+                // Controller
                 this.controller = this.renderer.xr.getController(0);
-                this.controller.addEventListener('select', (e) => this.onSelect(e));
+                this.controller.addEventListener('selectstart', () => this.onSelectStart());
+                this.controller.addEventListener('selectend', () => this.onSelectEnd());
                 this.scene.add(this.controller);
 
-                // 7. Reticle (Cursor)
-                this.reticle = new THREE.Mesh(
-                    new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
-                    new THREE.MeshBasicMaterial({ color: 0xffffff, opacity: 0.8, transparent: true })
-                );
+                // Reticle
+                this.reticle = new THREE.Mesh(new THREE.RingGeometry(0.15,0.2,32).rotateX(-Math.PI/2), new THREE.MeshBasicMaterial({color:0xffffff, opacity:0.8, transparent:true}));
                 this.reticle.matrixAutoUpdate = false;
                 this.reticle.visible = false;
                 this.scene.add(this.reticle);
 
-                // 8. Ghost Object (Preview)
-                this.ghost = new THREE.Mesh(new THREE.BoxGeometry(0.2,0.2,0.2), new THREE.MeshBasicMaterial({color: 0xffffff, wireframe: true, transparent: true, opacity: 0.3}));
-                this.ghost.visible = false;
-                this.scene.add(this.ghost);
-
-                // 9. Shadow Plane (Invisible floor that catches shadows)
-                const shadowPlane = new THREE.Mesh(
-                    new THREE.PlaneGeometry(20, 20).rotateX(-Math.PI/2),
-                    new THREE.ShadowMaterial({ opacity: 0.3 })
-                );
-                shadowPlane.position.y = -0.01;
+                // Shadow Plane
+                const shadowPlane = new THREE.Mesh(new THREE.PlaneGeometry(20,20).rotateX(-Math.PI/2), new THREE.ShadowMaterial({opacity:0.3}));
                 shadowPlane.receiveShadow = true;
                 this.scene.add(shadowPlane);
+            }
 
-                window.addEventListener('resize', () => {
-                    this.camera.aspect = window.innerWidth / window.innerHeight;
-                    this.camera.updateProjectionMatrix();
-                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+            onSelectStart() {
+                if(this.app.state.mode === 'draw') this.app.tools.startDrawing();
+            }
+
+            onSelectEnd() {
+                const mode = this.app.state.mode;
+                if(mode === 'place' && this.reticle.visible) this.app.tools.createPrimitive();
+                else if(mode === 'draw') this.app.tools.endDrawing();
+                else if(mode === 'select') this.app.editor.handleTap();
+            }
+
+            animate() {
+                this.renderer.setAnimationLoop((time, frame) => {
+                    if(frame) this.handleHitTest(frame);
+                    if(this.app.state.mode === 'draw') this.app.tools.updateDrawing();
+                    this.renderer.render(this.scene, this.camera);
                 });
             }
 
-            onSelect(event) {
-                // Determine action based on mode
-                if (this.app.state.mode === 'place' && this.reticle.visible) {
-                    this.app.tools.createObject();
-                } else if (this.app.state.mode === 'select') {
-                    this.app.editor.handleTap();
-                }
-            }
-
-            render(timestamp, frame) {
-                if (frame) {
-                    this.handleARHitTest(frame);
-                    
-                    // Update Ghost
-                    if(this.app.state.mode === 'place' && this.reticle.visible) {
-                        this.ghost.visible = true;
-                        this.ghost.position.copy(this.reticle.position);
-                        this.ghost.rotation.copy(this.reticle.rotation);
-                    } else {
-                        this.ghost.visible = false;
-                    }
-                }
-                this.renderer.render(this.scene, this.camera);
-            }
-
-            handleARHitTest(frame) {
-                const referenceSpace = this.renderer.xr.getReferenceSpace();
+            handleHitTest(frame) {
+                const refSpace = this.renderer.xr.getReferenceSpace();
                 const session = this.renderer.xr.getSession();
 
-                if (!this.hitTestSourceRequested) {
-                    session.requestReferenceSpace('viewer').then((refSpace) => {
-                        session.requestHitTestSource({ space: refSpace }).then((source) => {
-                            this.hitTestSource = source;
-                        });
-                    });
-                    session.addEventListener('end', () => { 
-                        this.hitTestSourceRequested = false; 
-                        this.hitTestSource = null; 
-                        this.app.io.updateStatus("Ended", false);
-                    });
+                if(!this.hitTestSourceRequested) {
+                    session.requestReferenceSpace('viewer').then(ref => session.requestHitTestSource({space:ref}).then(src => this.hitTestSource = src));
+                    session.addEventListener('end', () => { this.hitTestSourceRequested=false; this.hitTestSource=null; });
                     this.hitTestSourceRequested = true;
                 }
 
-                if (this.hitTestSource) {
-                    const hitTestResults = frame.getHitTestResults(this.hitTestSource);
-                    if (hitTestResults.length > 0) {
-                        const hit = hitTestResults[0];
+                if(this.hitTestSource) {
+                    const hits = frame.getHitTestResults(this.hitTestSource);
+                    if(hits.length > 0) {
+                        const hit = hits[0];
                         this.reticle.visible = true;
-                        this.reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
-                        this.app.io.updateStatus("Surface Found", true);
+                        this.reticle.matrix.fromArray(hit.getPose(refSpace).transform.matrix);
+                        this.app.io.setStatus(true);
                     } else {
                         this.reticle.visible = false;
-                        this.app.io.updateStatus("Scanning...", false);
+                        this.app.io.setStatus(false);
                     }
                 }
             }
         }
 
-        /* * TOOL MANAGER: Handles Object Creation & Factory 
-         */
+        /* --- TOOL MANAGER (Creation Logic) --- */
         class ToolManager {
-            constructor(app) { this.app = app; }
-
-            setShape(shape) {
-                this.app.state.currentShape = shape;
-                this.app.io.toast(`Selected: ${shape.toUpperCase()}`);
-                
-                // Update Ghost Geometry
-                let geo;
-                if(shape === 'box') geo = new THREE.BoxGeometry(0.2,0.2,0.2);
-                if(shape === 'sphere') geo = new THREE.SphereGeometry(0.12,32,16);
-                if(shape === 'cone') geo = new THREE.ConeGeometry(0.1,0.2,32);
-                this.app.sceneMgr.ghost.geometry.dispose();
-                this.app.sceneMgr.ghost.geometry = geo;
+            constructor(app) { 
+                this.app = app;
+                this.font = null;
+                new FontLoader().load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json', f => this.font = f);
+                this.currentLine = null;
             }
+
+            setShape(s) { this.app.state.shape = s; this.app.io.toast(`Shape: ${s}`); }
 
             cycleColor() {
-                this.app.state.currentColor = Math.random() * 0xffffff;
+                this.app.state.color = Math.random() * 0xffffff;
+                document.getElementById('mode-color').style.color = '#' + this.app.state.color.toString(16);
                 this.app.io.toast("Color Changed");
-                // Visual feedback on button
-                document.getElementById('tab-color').style.color = '#' + this.app.state.currentColor.toString(16);
             }
 
-            createObject() {
-                const shape = this.app.state.currentShape;
-                let geometry;
-                
-                if(shape === 'box') geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
-                else if(shape === 'sphere') geometry = new THREE.SphereGeometry(0.12, 32, 16);
-                else if(shape === 'cone') geometry = new THREE.ConeGeometry(0.1, 0.2, 32);
+            createPrimitive() {
+                let geo;
+                const s = this.app.state.shape;
+                if(s==='box') geo = new THREE.BoxGeometry(0.2,0.2,0.2);
+                else if(s==='sphere') geo = new THREE.SphereGeometry(0.12,32,16);
+                else if(s==='cylinder') geo = new THREE.CylinderGeometry(0.1,0.1,0.2,32);
+                else if(s==='cone') geo = new THREE.ConeGeometry(0.1,0.2,32);
 
-                const material = new THREE.MeshStandardMaterial({ 
-                    color: this.app.state.currentColor,
-                    roughness: 0.1,
-                    metalness: 0.1
-                });
+                const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:this.app.state.color, roughness:0.2, metalness:0.1}));
+                this.placeObject(mesh, 'primitive', {shape: s});
+            }
 
-                const mesh = new THREE.Mesh(geometry, material);
-                
-                // Apply Transform
-                this.app.sceneMgr.reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-                mesh.position.y += 0.1; // Place on top of floor
+            confirmText() {
+                const txt = document.getElementById('text-input').value;
+                document.getElementById('text-modal').style.display = 'none';
+                if(!txt || !this.app.sceneMgr.reticle.visible) return this.app.io.toast("Surface not found");
+
+                const geo = new TextGeometry(txt, { font:this.font, size:0.08, height:0.01 });
+                geo.computeBoundingBox();
+                geo.translate(-0.5*(geo.boundingBox.max.x-geo.boundingBox.min.x), 0, 0);
+
+                const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color:this.app.state.color}));
+                this.placeObject(mesh, 'text', {text: txt});
+            }
+
+            placeObject(mesh, type, meta) {
+                const reticle = this.app.sceneMgr.reticle;
+                reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                mesh.position.y += 0.05;
                 mesh.castShadow = true;
-                mesh.receiveShadow = true;
+                mesh.userData = { ...meta, type: type, color: this.app.state.color };
                 
                 this.app.sceneMgr.scene.add(mesh);
                 this.app.sceneMgr.objects.push(mesh);
                 
-                // Spawn Animation
+                // Pop animation
                 mesh.scale.set(0,0,0);
-                this.animateScale(mesh, 1);
+                let s=0; const i = setInterval(()=>{ s+=0.1; mesh.scale.set(s,s,s); if(s>=1) clearInterval(i); }, 16);
             }
 
-            animateScale(mesh, target) {
-                let s = 0;
-                const i = setInterval(() => {
-                    s += 0.1;
-                    mesh.scale.set(s,s,s);
-                    if(s >= target) clearInterval(i);
-                }, 16);
+            // Drawing Logic
+            startDrawing() {
+                const geo = new THREE.BufferGeometry();
+                geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(3000*3), 3));
+                geo.setDrawRange(0,0);
+                const mat = new THREE.LineBasicMaterial({color:this.app.state.color, linewidth:3});
+                this.currentLine = new THREE.Line(geo, mat);
+                this.currentLine.userData = {count:0, type:'drawing'};
+                this.app.sceneMgr.scene.add(this.currentLine);
+            }
+
+            updateDrawing() {
+                if(!this.currentLine) return;
+                const pos = this.app.sceneMgr.controller.position;
+                const attr = this.currentLine.geometry.attributes.position;
+                const count = this.currentLine.userData.count;
+                if(count < 3000) {
+                    attr.setXYZ(count, pos.x, pos.y, pos.z);
+                    this.currentLine.userData.count++;
+                    this.currentLine.geometry.setDrawRange(0, count);
+                    attr.needsUpdate = true;
+                }
+            }
+
+            endDrawing() {
+                if(this.currentLine) {
+                    this.app.sceneMgr.objects.push(this.currentLine);
+                    this.currentLine = null;
+                }
             }
         }
 
-        /* * EDITOR MANAGER: Handles Selection & Transformation 
-         */
+        /* --- EDITOR MANAGER (Selection & Modification) --- */
         class EditorManager {
-            constructor(app) { 
-                this.app = app; 
-                this.selectedObj = null;
-            }
+            constructor(app) { this.app = app; this.selected = null; }
 
             handleTap() {
-                // 1. Get Controller Position
-                const controller = this.app.sceneMgr.controller;
-                const tempMatrix = new THREE.Matrix4();
-                tempMatrix.identity().extractRotation(controller.matrixWorld);
-
-                // 2. Simple Proximity Check (Robust for Mobile)
-                // We check which object is closest to the controller within 50cm
-                let closest = null;
-                let minDist = 0.5;
-
-                this.app.sceneMgr.objects.forEach(obj => {
-                    const dist = obj.position.distanceTo(controller.position);
-                    if(dist < minDist) {
-                        minDist = dist;
-                        closest = obj;
-                    }
+                const ctrlPos = this.app.sceneMgr.controller.position;
+                let closest=null, min=0.5;
+                
+                this.app.sceneMgr.objects.forEach(o => {
+                    if(o.userData.type === 'drawing') return; // Skip drawings
+                    const d = o.position.distanceTo(ctrlPos);
+                    if(d < min) { min = d; closest = o; }
                 });
 
                 if(closest) this.select(closest);
@@ -485,125 +409,176 @@
             }
 
             select(obj) {
-                this.deselect(); // Clear old
-                this.selectedObj = obj;
+                this.deselect();
+                this.selected = obj;
+                this.selected.material.emissive.setHex(0x555555);
                 
-                // Visual Highlight
-                this.selectedObj.material.emissive.setHex(0x555555);
+                const insp = document.getElementById('inspector');
+                insp.classList.add('visible');
                 
-                // Open Inspector
-                const inspector = document.getElementById('inspector');
-                inspector.classList.add('visible');
-                
-                // Sync Sliders
+                // Sync UI
                 document.getElementById('sl-scale').value = obj.scale.x;
                 document.getElementById('sl-rot').value = obj.rotation.y;
                 document.getElementById('sl-y').value = obj.position.y;
             }
 
             deselect() {
-                if(this.selectedObj) {
-                    this.selectedObj.material.emissive.setHex(0x000000);
-                    this.selectedObj = null;
+                if(this.selected) {
+                    this.selected.material.emissive.setHex(0x000000);
+                    this.selected = null;
                 }
                 document.getElementById('inspector').classList.remove('visible');
             }
 
             updateTransform() {
-                if(!this.selectedObj) return;
-                
+                if(!this.selected) return;
                 const s = parseFloat(document.getElementById('sl-scale').value);
                 const r = parseFloat(document.getElementById('sl-rot').value);
                 const y = parseFloat(document.getElementById('sl-y').value);
-
-                this.selectedObj.scale.set(s,s,s);
-                this.selectedObj.rotation.y = r;
-                this.selectedObj.position.y = y;
-            }
-
-            deleteSelected() {
-                if(this.selectedObj) {
-                    this.app.sceneMgr.scene.remove(this.selectedObj);
-                    // Remove from array
-                    const idx = this.app.sceneMgr.objects.indexOf(this.selectedObj);
-                    if(idx > -1) this.app.sceneMgr.objects.splice(idx, 1);
-                    
-                    this.deselect();
-                    this.app.io.toast("Object Deleted");
-                }
+                this.selected.scale.set(s,s,s);
+                this.selected.rotation.y = r;
+                this.selected.position.y = y;
             }
 
             setMaterial(type, btn) {
-                if(!this.selectedObj) return;
-                
-                // UI update
+                if(!this.selected) return;
                 document.querySelectorAll('.mat-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
+                
+                const col = this.selected.material.color;
+                if(type === 'plastic') this.selected.material = new THREE.MeshStandardMaterial({color:col, roughness:0.5});
+                if(type === 'metal') this.selected.material = new THREE.MeshStandardMaterial({color:col, roughness:0.1, metalness:1});
+                if(type === 'glow') this.selected.material = new THREE.MeshBasicMaterial({color:col});
+                this.selected.material.emissive = new THREE.Color(0x555555); // Maintain selection highlight
+            }
 
-                const color = this.selectedObj.material.color;
-                
-                if(type === 'plastic') {
-                    this.selectedObj.material = new THREE.MeshStandardMaterial({ color: color, roughness: 0.5, metalness: 0 });
-                } else if(type === 'metal') {
-                    this.selectedObj.material = new THREE.MeshStandardMaterial({ color: color, roughness: 0.2, metalness: 1.0 });
-                } else if(type === 'glow') {
-                    this.selectedObj.material = new THREE.MeshBasicMaterial({ color: color });
+            triggerTextureUpload() {
+                const input = document.getElementById('file-input');
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if(file && this.selected) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => {
+                            new THREE.TextureLoader().load(ev.target.result, (tex) => {
+                                this.selected.material = new THREE.MeshStandardMaterial({map: tex});
+                            });
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                };
+                input.click();
+            }
+
+            deleteSelected() {
+                if(this.selected) {
+                    this.app.sceneMgr.scene.remove(this.selected);
+                    this.app.sceneMgr.objects = this.app.sceneMgr.objects.filter(o => o !== this.selected);
+                    this.deselect();
                 }
-                
-                // Re-enable emissive for selection highlight logic to work next time
-                if(type !== 'glow') this.selectedObj.material.emissive = new THREE.Color(0x555555);
             }
         }
 
-        /* * IO MANAGER: UI Updates & Interaction Blocking 
-         */
-        class IOManager {
+        /* --- PERSISTENCE & CAMERA --- */
+        class PersistenceManager {
             constructor(app) { this.app = app; }
-
-            updateStatus(text, ready) {
-                const dot = document.getElementById('status-dot');
-                document.getElementById('status-text').innerText = text;
-                if(ready) dot.classList.add('active');
-                else dot.classList.remove('active');
+            
+            save() {
+                const data = this.app.sceneMgr.objects.map(o => ({
+                    type: o.userData.type,
+                    meta: o.userData,
+                    transform: { pos: o.position.toArray(), rot: o.rotation.toArray(), scl: o.scale.toArray() }
+                }));
+                localStorage.setItem('ar_scene', JSON.stringify(data));
+                this.app.io.toast("Scene Saved to Storage");
             }
 
-            updateUI(mode) {
+            load() {
+                const json = localStorage.getItem('ar_scene');
+                if(!json) return this.app.io.toast("No Save Found");
+                
+                // Clear Scene
+                this.app.sceneMgr.objects.forEach(o => this.app.sceneMgr.scene.remove(o));
+                this.app.sceneMgr.objects = [];
+
+                JSON.parse(json).forEach(item => {
+                    // Recreate based on type
+                    if(item.type === 'primitive') {
+                        this.app.state.shape = item.meta.shape;
+                        this.app.state.color = item.meta.color;
+                        // Mock placement
+                        const dummyMesh = new THREE.Mesh(new THREE.BoxGeometry(), new THREE.MeshBasicMaterial()); // placeholder
+                        dummyMesh.position.fromArray(item.transform.pos);
+                        dummyMesh.rotation.fromArray(item.transform.rot);
+                        dummyMesh.scale.fromArray(item.transform.scl);
+                        
+                        // Use tool manager logic to properly create geometry
+                        this.app.sceneMgr.reticle.matrix.compose(dummyMesh.position, dummyMesh.quaternion, dummyMesh.scale);
+                        this.app.tools.createPrimitive(); // Will use current reticle transform, so this is tricky.
+                        
+                        // Better approach: Direct reconstruction
+                        let geo;
+                        if(item.meta.shape==='box') geo = new THREE.BoxGeometry(0.2,0.2,0.2);
+                        if(item.meta.shape==='sphere') geo = new THREE.SphereGeometry(0.12,32,16);
+                        // ... others
+                        const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({color: item.meta.color}));
+                        mesh.position.fromArray(item.transform.pos);
+                        mesh.rotation.fromArray(item.transform.rot);
+                        mesh.scale.fromArray(item.transform.scl);
+                        mesh.userData = item.meta;
+                        this.app.sceneMgr.scene.add(mesh);
+                        this.app.sceneMgr.objects.push(mesh);
+                    }
+                });
+                this.app.io.toast("Scene Loaded");
+            }
+        }
+
+        class CameraManager {
+            constructor(app) { this.app = app; }
+            snap() {
+                this.app.sceneMgr.renderer.render(this.app.sceneMgr.scene, this.app.sceneMgr.camera);
+                const data = this.app.sceneMgr.renderer.domElement.toDataURL('image/png');
+                const a = document.createElement('a');
+                a.href = data; a.download = 'ar_snap.png'; a.click();
+            }
+        }
+
+        /* --- IO / UI HELPER --- */
+        class IOManager {
+            constructor(app) { this.app = app; }
+            
+            setStatus(ready) {
+                const dot = document.getElementById('status-dot');
+                const txt = document.getElementById('status-text');
+                if(ready) { dot.classList.add('ready'); txt.innerText = "Ready"; }
+                else { dot.classList.remove('ready'); txt.innerText = "Scanning..."; }
+            }
+
+            updateToolbar(mode) {
                 document.querySelectorAll('.icon-btn').forEach(b => b.classList.remove('active'));
-                document.getElementById('tab-' + mode).classList.add('active');
+                document.getElementById('mode-'+mode).classList.add('active');
             }
 
             toast(msg) {
                 const t = document.getElementById('toast');
-                t.innerText = msg;
-                t.style.opacity = 1;
-                setTimeout(() => t.style.opacity = 0, 2000);
+                t.innerText = msg; t.style.opacity=1;
+                setTimeout(()=>t.style.opacity=0, 2000);
             }
 
             undo() {
-                const list = this.app.sceneMgr.objects;
-                if(list.length > 0) {
-                    const last = list.pop();
+                const objs = this.app.sceneMgr.objects;
+                if(objs.length>0) {
+                    const last = objs.pop();
                     this.app.sceneMgr.scene.remove(last);
                     this.toast("Undo");
                 }
             }
-
-            export() {
-                this.toast("Saving...");
-                // Serialize logic here
-                setTimeout(() => this.toast("Project Saved to Browser"), 500);
-            }
         }
 
-        // --- PREVENT GHOST CLICKS ON UI ---
-        // This is CRITICAL. It stops 3D clicks when touching HTML buttons.
-        document.querySelectorAll('button, input').forEach(el => {
-            el.addEventListener('beforexrselect', (e) => {
-                e.preventDefault();
-            });
-        });
+        // --- PREVENT GHOST CLICKS ---
+        document.querySelectorAll('button, input').forEach(el => el.addEventListener('beforexrselect', e => e.preventDefault()));
 
-        // Initialize
+        // --- START ---
         window.app = new App();
 
     </script>
