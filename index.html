@@ -3,59 +3,75 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
-<title>AR Design Studio – Production</title>
+<title>AR Design Studio – Fixed UI</title>
 
 <style>
 *{box-sizing:border-box}
 body{
-    margin:0;overflow:hidden;background:#000;color:#fff;
+    margin:0;
+    overflow:hidden;
+    background:#000;
     font-family:system-ui,-apple-system,Segoe UI,Roboto;
 }
 
-/* GLASS UI */
+/* CAMERA CANVAS */
+canvas{
+    position:absolute;
+    inset:0;
+    z-index:1;
+}
+
+/* UI ROOT */
+#ui{
+    position:absolute;
+    inset:0;
+    z-index:10;               /* ABOVE CAMERA */
+    pointer-events:auto;      /* ENABLE TOUCH */
+}
+
+/* GLASS */
 .glass{
     background:rgba(20,20,20,.65);
     backdrop-filter:blur(14px);
     border:1px solid rgba(255,255,255,.08);
+    color:#fff;
 }
-
-/* UI LAYER */
-#ui{position:absolute;inset:0;pointer-events:none}
 
 /* HINT */
 #hint{
-    position:absolute;top:16px;left:50%;
+    position:absolute;
+    top:16px;
+    left:50%;
     transform:translateX(-50%);
     padding:10px 18px;
     border-radius:20px;
     font-size:13px;
+    pointer-events:none;
 }
 
 /* TOOLBAR */
 #toolbar{
-    position:absolute;bottom:18px;width:100%;
-    display:flex;justify-content:center;gap:8px;
+    position:absolute;
+    bottom:18px;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    gap:8px;
     pointer-events:auto;
 }
-.tool{
-    padding:12px 14px;border-radius:16px;
-    font-size:14px;cursor:pointer;
-}
-.tool.active{background:#00e5ff;color:#000}
 
-/* PANEL */
-#panel{
-    position:absolute;bottom:80px;left:50%;
-    transform:translateX(-50%);
-    padding:12px;border-radius:18px;
-    display:none;gap:8px;
-    pointer-events:auto;
+.tool{
+    padding:12px 14px;
+    border-radius:16px;
+    font-size:14px;
+    cursor:pointer;
+    user-select:none;
 }
-.btn{
-    padding:10px 14px;border-radius:14px;
-    background:#222;font-size:13px;cursor:pointer;
+
+.tool.active{
+    background:#00e5ff;
+    color:#000;
 }
-.btn.primary{background:#00e5ff;color:#000}
 </style>
 
 <script type="importmap">
@@ -70,18 +86,16 @@ body{
 
 <body>
 
+<!-- UI MUST EXIST BEFORE XR BUTTON -->
 <div id="ui">
-  <div id="hint" class="glass">Move device to detect surface</div>
+    <div id="hint" class="glass">Move device to detect surface</div>
 
-  <div id="panel" class="glass"></div>
-
-  <div id="toolbar">
-    <div class="tool glass active" data-tool="add">➕</div>
-    <div class="tool glass" data-tool="draw">✏️</div>
-    <div class="tool glass" data-tool="measure">📐</div>
-    <div class="tool glass" data-tool="save">💾</div>
-    <div class="tool glass" data-tool="clear">🗑</div>
-  </div>
+    <div id="toolbar">
+        <div class="tool glass active" data-tool="add">➕ Add</div>
+        <div class="tool glass" data-tool="draw">✏️ Draw</div>
+        <div class="tool glass" data-tool="measure">📐 Measure</div>
+        <div class="tool glass" data-tool="clear">🗑 Clear</div>
+    </div>
 </div>
 
 <script type="module">
@@ -91,10 +105,6 @@ import { ARButton } from 'three/addons/webxr/ARButton.js';
 /* ---------------- STATE ---------------- */
 const state={
  tool:'add',
- objects:[],
- drawings:[],
- measures:[],
- selected:null,
  drawing:false,
  drawPts:[],
  measurePts:[]
@@ -102,7 +112,7 @@ const state={
 
 /* ---------------- SCENE ---------------- */
 const scene=new THREE.Scene();
-const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,30);
+const camera=new THREE.PerspectiveCamera(70,innerWidth/innerHeight,.01,20);
 
 const renderer=new THREE.WebGLRenderer({alpha:true,antialias:true});
 renderer.setSize(innerWidth,innerHeight);
@@ -110,7 +120,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio,2));
 renderer.xr.enabled=true;
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.HemisphereLight(0xffffff,0xbbbbff,1.6));
+scene.add(new THREE.HemisphereLight(0xffffff,0xbbbbff,1.5));
 
 /* ---------------- RETICLE ---------------- */
 const reticle=new THREE.Mesh(
@@ -129,59 +139,46 @@ document.body.appendChild(
 );
 
 /* ---------------- HIT TEST ---------------- */
-let hitSource=null,hitReq=false;
+let hitSource=null,requested=false;
+
 renderer.xr.addEventListener('sessionend',()=>{
- hitSource=null;hitReq=false;
+ hitSource=null;
+ requested=false;
 });
 
-/* ---------------- MATERIALS ---------------- */
-const matBase=()=>new THREE.MeshStandardMaterial({
- color:0x00e5ff,metalness:.6,roughness:.25
-});
-
-/* ---------------- OBJECT CREATION ---------------- */
+/* ---------------- ADD OBJECT ---------------- */
 function addObject(){
  const mesh=new THREE.Mesh(
   new THREE.BoxGeometry(.25,.25,.25),
-  matBase()
+  new THREE.MeshStandardMaterial({color:0x00e5ff})
  );
  mesh.position.copy(reticle.position);
  mesh.position.y+=.125;
  scene.add(mesh);
- state.objects.push(mesh);
 }
 
 /* ---------------- DRAW ---------------- */
-let drawLine=null;
-const drawMat=new THREE.LineBasicMaterial({color:0xff4444});
-
+let line=null;
 function startDraw(){
  state.drawPts=[];
- drawLine=new THREE.Line(new THREE.BufferGeometry(),drawMat);
- scene.add(drawLine);
+ line=new THREE.Line(
+  new THREE.BufferGeometry(),
+  new THREE.LineBasicMaterial({color:0xff4444})
+ );
+ scene.add(line);
 }
 function updateDraw(){
  state.drawPts.push(reticle.position.clone());
- drawLine.geometry.setFromPoints(state.drawPts);
+ line.geometry.setFromPoints(state.drawPts);
 }
-function endDraw(){
- state.drawings.push(drawLine);
- drawLine=null;
-}
+function endDraw(){ line=null; }
 
 /* ---------------- MEASURE ---------------- */
-function addMeasurePoint(){
+function measure(){
  state.measurePts.push(reticle.position.clone());
  if(state.measurePts.length===2){
   const [a,b]=state.measurePts;
-  const geo=new THREE.BufferGeometry().setFromPoints([a,b]);
-  const line=new THREE.Line(geo,new THREE.LineBasicMaterial({color:0xffff00}));
-  scene.add(line);
-
-  const dist=a.distanceTo(b).toFixed(2);
-  alert(`Distance: ${dist} meters`);
-
-  state.measures.push(line);
+  alert(`Distance: ${a.distanceTo(b).toFixed(2)} meters`);
   state.measurePts=[];
  }
 }
@@ -192,67 +189,62 @@ renderer.domElement.addEventListener('pointerdown',()=>{
 
  if(state.tool==='add') addObject();
  if(state.tool==='draw'){state.drawing=true;startDraw();}
- if(state.tool==='measure') addMeasurePoint();
+ if(state.tool==='measure') measure();
 });
 
 renderer.domElement.addEventListener('pointerup',()=>{
- if(state.drawing){state.drawing=false;endDraw();}
+ if(state.drawing){
+  state.drawing=false;
+  endDraw();
+ }
 });
 
-/* ---------------- UI ---------------- */
+/* ---------------- UI EVENTS ---------------- */
 document.querySelectorAll('.tool').forEach(btn=>{
- btn.onclick=()=>{
+ btn.addEventListener('click',e=>{
   document.querySelectorAll('.tool').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   state.tool=btn.dataset.tool;
 
   if(state.tool==='clear'){
-   [...state.objects,...state.drawings,...state.measures]
+   scene.children
+    .filter(o=>o.isMesh||o.isLine)
     .forEach(o=>scene.remove(o));
-   state.objects=[];state.drawings=[];state.measures=[];
+   scene.add(reticle);
   }
-
-  if(state.tool==='save'){
-   const data={
-    objects:state.objects.map(o=>({
-     pos:o.position.toArray(),
-     rot:o.rotation.toArray()
-    }))
-   };
-   navigator.clipboard.writeText(JSON.stringify(data,null,2));
-   alert("Design copied to clipboard");
-  }
- };
+ });
 });
 
-/* ---------------- RENDER ---------------- */
+/* ---------------- RENDER LOOP ---------------- */
 renderer.setAnimationLoop((t,frame)=>{
  if(frame){
   const session=renderer.xr.getSession();
-  if(!hitReq){
-   session.requestReferenceSpace('viewer').then(s=>{
-    session.requestHitTestSource({space:s}).then(src=>hitSource=src);
+  if(!requested){
+   session.requestReferenceSpace('viewer').then(space=>{
+    session.requestHitTestSource({space}).then(src=>hitSource=src);
    });
-   hitReq=true;
+   requested=true;
   }
+
   if(hitSource){
    const hits=frame.getHitTestResults(hitSource);
    if(hits.length){
-    const p=hits[0].getPose(renderer.xr.getReferenceSpace());
+    const pose=hits[0].getPose(renderer.xr.getReferenceSpace());
     reticle.visible=true;
     reticle.position.set(
-     p.transform.position.x,
-     p.transform.position.y,
-     p.transform.position.z
+     pose.transform.position.x,
+     pose.transform.position.y,
+     pose.transform.position.z
     );
     document.getElementById('hint').innerText="Tap to interact";
    }else{
     reticle.visible=false;
-    document.getElementById('hint').innerText="Move to find surface";
+    document.getElementById('hint').innerText="Move to detect surface";
    }
   }
  }
- if(state.drawing && drawLine) updateDraw();
+
+ if(state.drawing && line) updateDraw();
  renderer.render(scene,camera);
 });
 
@@ -263,5 +255,6 @@ addEventListener('resize',()=>{
  renderer.setSize(innerWidth,innerHeight);
 });
 </script>
+
 </body>
 </html>
