@@ -1,83 +1,62 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>AR Design Studio Pro</title>
+    <title>AR Studio - Fixed Version</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; user-select: none; -webkit-user-select: none; }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
         
-        /* --- MAIN UI LAYER --- */
+        /* FIX 1: Canvas must not block clicks */
+        canvas { 
+            display: block; 
+            width: 100% !important; 
+            height: 100% !important;
+            pointer-events: none !important; /* CRITICAL: Lets clicks pass through to UI */
+        }
+
+        /* FIX 2: UI Layer must be on top */
         #ui-layer {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-            pointer-events: none;
+            pointer-events: none; /* Background allows clicks through */
+            z-index: 1000; /* Force on top of canvas */
             display: flex; flex-direction: column; justify-content: flex-end; align-items: center;
         }
 
-        /* --- TOOLBAR --- */
+        /* Status Bar (To help you debug) */
+        #status-bar {
+            position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(255, 0, 0, 0.8); color: white;
+            padding: 8px 16px; border-radius: 20px;
+            font-weight: bold; font-size: 14px;
+            pointer-events: none;
+        }
+        #status-bar.ready { background: rgba(0, 200, 50, 0.8); }
+
+        /* Toolbar */
         .toolbar {
-            margin-bottom: 20px;
-            background: rgba(15, 15, 15, 0.85);
-            backdrop-filter: blur(12px);
-            padding: 10px 20px;
-            border-radius: 30px;
-            display: flex; gap: 15px;
-            pointer-events: auto;
-            border: 1px solid rgba(255,255,255,0.15);
-            box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+            margin-bottom: 30px;
+            background: rgba(20, 20, 20, 0.9);
+            padding: 15px; border-radius: 30px;
+            display: flex; gap: 20px;
+            pointer-events: auto; /* Buttons must catch clicks */
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
         .tool-btn {
-            width: 48px; height: 48px;
+            width: 50px; height: 50px;
             border-radius: 50%; border: none;
-            background: #2a2a2a; color: white;
-            font-size: 20px; cursor: pointer;
-            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex; align-items: center; justify-content: center;
+            background: #444; color: white;
+            font-size: 24px; cursor: pointer;
         }
-        .tool-btn:active { transform: scale(0.9); }
-        .tool-btn.active { background: #0a84ff; box-shadow: 0 0 15px rgba(10, 132, 255, 0.5); transform: translateY(-2px); }
+        .tool-btn.active { background: #0a84ff; border: 2px solid white; }
 
-        /* --- TOP HEADER (Save/Load) --- */
-        .header-bar {
-            position: absolute; top: 20px; right: 20px;
-            display: flex; gap: 10px; pointer-events: auto;
+        /* AR Start Button Area */
+        #ar-btn-holder { 
+            pointer-events: auto; 
+            margin-bottom: 20px; 
+            z-index: 1001;
         }
-        .text-btn {
-            background: rgba(0,0,0,0.6); color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px 16px; border-radius: 8px;
-            font-weight: 600; font-size: 14px;
-        }
-
-        /* --- TRANSFORM GIZMO PANEL (Hidden by default) --- */
-        #transform-panel {
-            display: none; position: absolute; bottom: 100px;
-            background: rgba(0,0,0,0.8); padding: 15px; border-radius: 12px;
-            pointer-events: auto; width: 200px;
-        }
-        .slider-row { display: flex; align-items: center; color: white; margin: 5px 0; font-size: 12px; }
-        .slider-row label { width: 50px; }
-        input[type=range] { flex-grow: 1; }
-
-        /* --- CONTEXT MENUS --- */
-        #shape-indicator {
-            position: absolute; bottom: 85px; 
-            background: rgba(0,0,0,0.6); color: #fff;
-            padding: 4px 12px; border-radius: 12px; font-size: 12px;
-            pointer-events: none; opacity: 0; transition: opacity 0.3s;
-        }
-        
-        #text-input-container {
-            display: none; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: white; padding: 20px; border-radius: 12px;
-            pointer-events: auto; text-align: center;
-        }
-        #real-text-input { padding: 8px; font-size: 16px; margin-bottom: 10px; }
-
-        /* AR Button Positioning */
-        #ar-btn-holder { pointer-events: auto; margin-bottom: 10px; }
     </style>
 
     <script type="importmap">
@@ -90,105 +69,67 @@
     </script>
 </head>
 <body>
+    
     <div id="ui-layer">
-        <div class="header-bar">
-            <button class="text-btn" onclick="takeSnapshot()">📷 Snap</button>
-            <button class="text-btn" onclick="saveScene()">💾 Save</button>
-            <button class="text-btn" onclick="loadScene()">📂 Load</button>
-        </div>
-
-        <div id="transform-panel">
-            <div style="text-align:center; color:#aaa; margin-bottom:5px; font-size:10px;">EDIT OBJECT</div>
-            <div class="slider-row">
-                <label>Rotate</label>
-                <input type="range" min="0" max="6.28" step="0.1" id="rotate-slider" oninput="updateTransform()">
-            </div>
-            <div class="slider-row">
-                <label>Scale</label>
-                <input type="range" min="0.5" max="3.0" step="0.1" id="scale-slider" oninput="updateTransform()">
-            </div>
-            <button class="text-btn" style="width:100%; margin-top:5px; background:#ff3b30;" onclick="deleteSelected()">Delete</button>
-        </div>
-
-        <div id="text-input-container">
-            <h3>Type 3D Text</h3>
-            <input type="text" id="real-text-input" placeholder="Hello World">
-            <br>
-            <button class="text-btn" style="background:#0a84ff; color:white;" onclick="confirmText()">Create</button>
-            <button class="text-btn" style="background:#333;" onclick="cancelText()">Cancel</button>
-        </div>
-
-        <div id="shape-indicator">Current: Cube</div>
+        <div id="status-bar">Status: Initializing...</div>
 
         <div class="toolbar">
-            <button class="tool-btn active" id="btn-place" onclick="setMode('place')" title="Place Objects">📦</button>
-            <button class="tool-btn" id="btn-text" onclick="setMode('text')" title="3D Text">Aa</button>
-            <button class="tool-btn" id="btn-select" onclick="setMode('select')" title="Select & Edit">👆</button>
-            <button class="tool-btn" id="btn-cycle" onclick="cycleShape()" title="Change Shape">🔄</button>
-            <button class="tool-btn" id="btn-color" onclick="cycleColor()" title="Change Color">🎨</button>
+            <button class="tool-btn active" id="btn-place" onclick="setMode('place')">📦</button>
+            <button class="tool-btn" id="btn-color" onclick="changeColor()">🎨</button>
+            <button class="tool-btn" id="btn-undo" onclick="undo()">↩️</button>
         </div>
-        
+
         <div id="ar-btn-holder"></div>
     </div>
 
     <script type="module">
         import * as THREE from 'three';
         import { ARButton } from 'three/addons/webxr/ARButton.js';
-        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
-        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
 
-        // --- GLOBAL VARIABLES ---
         let camera, scene, renderer, controller;
         let reticle, hitTestSource = null, hitTestSourceRequested = false;
         
-        // State
+        // App State
+        let mode = 'place';
         const placedObjects = [];
-        let loadedFont = null;
-        let selectedObject = null;
+        let currentColor = 0x007bff; // Blue
         
-        const appState = {
-            mode: 'place', // place, text, select
-            shape: 'cube',
-            color: 0x007bff,
-            colorIndex: 0
-        };
-
-        const colors = [0x007bff, 0xff3b30, 0x4cd964, 0xffcc00, 0xffffff, 0x5856d6];
-
         init();
         animate();
 
-        // --- INITIALIZATION ---
         function init() {
             const container = document.createElement('div');
-            document.body.appendChild(container);
+            document.body.appendChild(container); // Canvas container
 
             scene = new THREE.Scene();
 
             camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.01, 20);
 
             // Lights
-            const hemiLight = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 3);
-            hemiLight.position.set(0.5, 1, 0.25);
-            scene.add(hemiLight);
+            const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 3);
+            light.position.set(0.5, 1, 0.25);
+            scene.add(light);
 
-            // Renderer (Preserve drawing buffer required for Screenshots)
-            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true });
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setPixelRatio(window.devicePixelRatio);
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.xr.enabled = true;
             container.appendChild(renderer.domElement);
 
-            // AR Button
-            const arBtn = ARButton.createButton(renderer, { requiredFeatures: ['hit-test', 'dom-overlay'], domOverlay: { root: document.body } });
+            // AR Button (With DOM Overlay Support)
+            const arBtn = ARButton.createButton(renderer, { 
+                requiredFeatures: ['hit-test', 'dom-overlay'], 
+                domOverlay: { root: document.body } 
+            });
             document.getElementById('ar-btn-holder').appendChild(arBtn);
 
-            // Controller
+            // Controller (Handles Taps)
             controller = renderer.xr.getController(0);
             controller.addEventListener('select', onSelect);
             scene.add(controller);
 
-            // Reticle
+            // Reticle (The white circle cursor)
             reticle = new THREE.Mesh(
                 new THREE.RingGeometry(0.15, 0.2, 32).rotateX(-Math.PI / 2),
                 new THREE.MeshBasicMaterial()
@@ -197,242 +138,55 @@
             reticle.visible = false;
             scene.add(reticle);
 
-            // Load Font for 3D Text
-            const loader = new FontLoader();
-            loader.load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_regular.typeface.json', function (response) {
-                loadedFont = response;
+            // FIX 3: Prevent Placing Object when Clicking Buttons
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('beforexrselect', (e) => {
+                    e.preventDefault(); // Stop the 3D tap passing through the button
+                });
             });
 
             window.addEventListener('resize', onWindowResize);
         }
 
-        // --- INTERACTION HANDLER ---
+        // --- INTERACTIONS ---
+
         function onSelect() {
-            if (reticle.visible && appState.mode === 'place') {
-                createPrimitiveAtReticle();
-            }
-            else if (reticle.visible && appState.mode === 'text') {
-                // Open text input dialog (Exit AR briefly or use DOM overlay)
-                document.getElementById('text-input-container').style.display = 'block';
-            }
-            else if (appState.mode === 'select') {
-                // Raycasting for selection
-                handleSelectionRaycast();
-            }
-        }
-
-        // --- CORE FUNCTIONS ---
-
-        function createPrimitiveAtReticle() {
-            let geometry;
-            switch(appState.shape) {
-                case 'cube': geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2); break;
-                case 'sphere': geometry = new THREE.SphereGeometry(0.15, 32, 16); break;
-                case 'cylinder': geometry = new THREE.CylinderGeometry(0.1, 0.1, 0.2, 32); break;
-                case 'cone': geometry = new THREE.ConeGeometry(0.1, 0.2, 32); break;
-            }
-
-            const material = new THREE.MeshPhongMaterial({ color: appState.color });
-            const mesh = new THREE.Mesh(geometry, material);
-            
-            applyReticleTransform(mesh);
-            mesh.userData = { type: 'primitive', shape: appState.shape, color: appState.color };
-            
-            scene.add(mesh);
-            placedObjects.push(mesh);
-        }
-
-        window.confirmText = () => {
-            const text = document.getElementById('real-text-input').value;
-            if (text && loadedFont && reticle.visible) {
-                const geometry = new TextGeometry(text, {
-                    font: loadedFont, size: 0.1, height: 0.02,
-                });
-                
-                // Center text
-                geometry.computeBoundingBox();
-                const xOffset = -0.5 * (geometry.boundingBox.max.x - geometry.boundingBox.min.x);
-                geometry.translate(xOffset, 0, 0);
-
-                const material = new THREE.MeshPhongMaterial({ color: appState.color });
+            // Only place if Reticle is Visible
+            if (reticle.visible && mode === 'place') {
+                const geometry = new THREE.BoxGeometry(0.2, 0.2, 0.2);
+                const material = new THREE.MeshPhongMaterial({ color: currentColor });
                 const mesh = new THREE.Mesh(geometry, material);
                 
-                applyReticleTransform(mesh);
-                mesh.userData = { type: 'text', content: text, color: appState.color };
-
+                // Copy position from reticle
+                reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
+                mesh.position.y += 0.1; // Place on top of floor
+                
                 scene.add(mesh);
                 placedObjects.push(mesh);
             }
-            document.getElementById('text-input-container').style.display = 'none';
-            document.getElementById('real-text-input').value = '';
-        };
-
-        window.cancelText = () => {
-             document.getElementById('text-input-container').style.display = 'none';
         }
 
-        function applyReticleTransform(mesh) {
-            reticle.matrix.decompose(mesh.position, mesh.quaternion, mesh.scale);
-            mesh.position.y += 0.05; // avoid z-fighting
-        }
-
-        // --- SELECTION & TRANSFORM SYSTEM ---
-        function handleSelectionRaycast() {
-            // Create a temporary raycaster from the controller position
-            // In WebXR 'viewer' space, the center of screen is roughly 0,0,-1 relative to camera
-            // But simplified: we check distance to all objects and pick closest within range
-            
-            // Getting accurate raycast from controller in WebXR is complex without 'hit-test'
-            // For this 'Select' mode, we will use the Reticle position as a cursor
-            // If the Reticle is close to an object, we select it.
-            
-            let closest = null;
-            let minDst = 0.5; // 50cm selection radius
-
-            placedObjects.forEach(obj => {
-                const dist = obj.position.distanceTo(reticle.position);
-                if (dist < minDst) {
-                    minDst = dist;
-                    closest = obj;
-                }
-            });
-
-            if (closest) {
-                selectObject(closest);
-            } else {
-                deselectObject();
-            }
-        }
-
-        function selectObject(obj) {
-            if (selectedObject) selectedObject.material.emissive.setHex(0x000000); // Unhighlight old
-            
-            selectedObject = obj;
-            selectedObject.material.emissive.setHex(0x555555); // Highlight new
-            
-            // Show UI
-            const panel = document.getElementById('transform-panel');
-            panel.style.display = 'block';
-            document.getElementById('scale-slider').value = selectedObject.scale.x;
-            document.getElementById('rotate-slider').value = selectedObject.rotation.y;
-        }
-
-        function deselectObject() {
-            if (selectedObject) selectedObject.material.emissive.setHex(0x000000);
-            selectedObject = null;
-            document.getElementById('transform-panel').style.display = 'none';
-        }
-
-        window.updateTransform = () => {
-            if(!selectedObject) return;
-            const rot = parseFloat(document.getElementById('rotate-slider').value);
-            const scale = parseFloat(document.getElementById('scale-slider').value);
-            
-            selectedObject.rotation.y = rot;
-            selectedObject.scale.set(scale, scale, scale);
-        }
-
-        window.deleteSelected = () => {
-            if(selectedObject) {
-                scene.remove(selectedObject);
-                const idx = placedObjects.indexOf(selectedObject);
-                if (idx > -1) placedObjects.splice(idx, 1);
-                deselectObject();
-            }
-        }
-
-        // --- PERSISTENCE (SAVE/LOAD) ---
-        window.saveScene = () => {
-            const data = placedObjects.map(obj => ({
-                type: obj.userData.type,
-                shape: obj.userData.shape || null,
-                content: obj.userData.content || null,
-                color: obj.userData.color,
-                transform: {
-                    pos: obj.position.toArray(),
-                    rot: obj.rotation.toArray(),
-                    scl: obj.scale.toArray()
-                }
-            }));
-            localStorage.setItem('ar_scene_v1', JSON.stringify(data));
-            alert('Scene Saved!');
-        };
-
-        window.loadScene = () => {
-            const json = localStorage.getItem('ar_scene_v1');
-            if (!json) return alert('No saved scene found.');
-            
-            // Clear current
-            placedObjects.forEach(o => scene.remove(o));
-            placedObjects.length = 0;
-
-            const data = JSON.parse(json);
-            data.forEach(item => {
-                let mesh;
-                const material = new THREE.MeshPhongMaterial({ color: item.color });
-
-                if (item.type === 'primitive') {
-                    let geo;
-                    if(item.shape === 'cube') geo = new THREE.BoxGeometry(0.2,0.2,0.2);
-                    else if(item.shape === 'sphere') geo = new THREE.SphereGeometry(0.15,32,16);
-                    else geo = new THREE.BoxGeometry(0.2,0.2,0.2); // Fallback
-                    mesh = new THREE.Mesh(geo, material);
-                    mesh.userData = { type: 'primitive', shape: item.shape, color: item.color };
-                } else if (item.type === 'text' && loadedFont) {
-                    const geo = new TextGeometry(item.content, { font: loadedFont, size: 0.1, height: 0.02 });
-                    mesh = new THREE.Mesh(geo, material);
-                    mesh.userData = { type: 'text', content: item.content, color: item.color };
-                }
-
-                if (mesh) {
-                    mesh.position.fromArray(item.transform.pos);
-                    mesh.rotation.fromArray(item.transform.rot); // Euler
-                    mesh.scale.fromArray(item.transform.scl);
-                    scene.add(mesh);
-                    placedObjects.push(mesh);
-                }
-            });
-            alert('Scene Loaded!');
-        };
-
-        window.takeSnapshot = () => {
-            // Need to render once to ensure buffer is populated
-            renderer.render(scene, camera);
-            const dataURL = renderer.domElement.toDataURL("image/png");
-            
-            // Create a temporary link to download
-            const link = document.createElement('a');
-            link.download = 'ar-design-' + Date.now() + '.png';
-            link.href = dataURL;
-            link.click();
-        };
-
-        // --- UI HELPERS ---
-        window.setMode = (mode) => {
-            appState.mode = mode;
+        // --- UI FUNCTIONS ---
+        
+        window.setMode = (m) => {
+            mode = m;
             document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + mode).classList.add('active');
-            deselectObject(); // Clear selection when changing modes
+            document.getElementById('btn-' + m).classList.add('active');
         };
 
-        window.cycleShape = () => {
-            const shapes = ['cube', 'sphere', 'cylinder', 'cone'];
-            const idx = shapes.indexOf(appState.shape);
-            appState.shape = shapes[(idx + 1) % shapes.length];
-            
-            const indicator = document.getElementById('shape-indicator');
-            indicator.innerText = "Shape: " + appState.shape.toUpperCase();
-            indicator.style.opacity = 1;
-            setTimeout(() => indicator.style.opacity = 0, 1500);
+        window.changeColor = () => {
+            currentColor = Math.random() * 0xffffff;
+            document.getElementById('btn-color').style.border = '2px solid #' + currentColor.toString(16);
         };
 
-        window.cycleColor = () => {
-            appState.colorIndex = (appState.colorIndex + 1) % colors.length;
-            appState.color = colors[appState.colorIndex];
-            
-            // Visual feedback on the button itself
-            document.getElementById('btn-color').style.color = '#' + appState.color.toString(16);
+        window.undo = () => {
+            if (placedObjects.length > 0) {
+                const obj = placedObjects.pop();
+                scene.remove(obj);
+            }
         };
+
+        // --- RENDER LOOP ---
 
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
@@ -449,24 +203,40 @@
                 const referenceSpace = renderer.xr.getReferenceSpace();
                 const session = renderer.xr.getSession();
 
+                // Hit Test Setup
                 if (hitTestSourceRequested === false) {
                     session.requestReferenceSpace('viewer').then((refSpace) => {
                         session.requestHitTestSource({ space: refSpace }).then((source) => {
                             hitTestSource = source;
                         });
                     });
-                    session.addEventListener('end', () => { hitTestSourceRequested = false; hitTestSource = null; });
+                    session.addEventListener('end', () => { 
+                        hitTestSourceRequested = false; 
+                        hitTestSource = null; 
+                        document.getElementById('status-bar').innerText = "AR Stopped";
+                    });
                     hitTestSourceRequested = true;
                 }
 
+                // Process Hit Test
                 if (hitTestSource) {
                     const hitTestResults = frame.getHitTestResults(hitTestSource);
+                    const status = document.getElementById('status-bar');
+                    
                     if (hitTestResults.length > 0) {
                         const hit = hitTestResults[0];
                         reticle.visible = true;
                         reticle.matrix.fromArray(hit.getPose(referenceSpace).transform.matrix);
+                        
+                        // Update Status
+                        if(status.innerText !== "Ready to Place") {
+                            status.innerText = "Ready to Place";
+                            status.classList.add('ready');
+                        }
                     } else {
                         reticle.visible = false;
+                        status.innerText = "Scanning floor... Move phone slowly";
+                        status.classList.remove('ready');
                     }
                 }
             }
