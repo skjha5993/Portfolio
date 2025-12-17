@@ -1,325 +1,328 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GradeBoost - AI Assignment Assistant</title>
-    
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:ital,wght@0,300;0,400;0,700;1,300&display=swap" rel="stylesheet">
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-    <style>
-        :root {
-            --primary: #4f46e5; /* Indigo-600 */
-            --paper: #ffffff;
-        }
-        
-        body { 
-            font-family: 'Inter', sans-serif; 
-            background-color: #f3f4f6;
-            background-image: radial-gradient(#e5e7eb 1px, transparent 1px);
-            background-size: 24px 24px;
-        }
+<title>Landing Page & Social Media Design for Small Businesses | DigMonk</title>
 
-        /* Document Typography */
-        .prose-content {
-            font-family: 'Merriweather', serif;
-            color: #1f2937;
-            line-height: 1.8;
-        }
-        .prose-content h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 1rem; color: #111827; }
-        .prose-content h2 { font-size: 1.4rem; font-weight: 600; margin-top: 1.5rem; margin-bottom: 0.75rem; color: #374151; }
-        .prose-content p { margin-bottom: 1rem; }
-        
-        /* Glassmorphism Lock Overlay */
-        .glass-lock {
-            background: rgba(255, 255, 255, 0.7);
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border-top: 1px solid rgba(255, 255, 255, 0.5);
-        }
+<meta name="description" content="DigMonk provides landing page design and social media graphics for small businesses. Clean, affordable designs that help you look professional and attract customers.">
+<meta name="robots" content="index, follow" />
 
-        /* Gradient Blur for Text */
-        .blur-gradient {
-            mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-            -webkit-mask-image: linear-gradient(to bottom, black 20%, transparent 100%);
-        }
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-        /* Floating Animation for Trust Badges */
-        @keyframes float {
-            0% { transform: translateY(0px); }
-            50% { transform: translateY(-5px); }
-            100% { transform: translateY(0px); }
-        }
-        .animate-float { animation: float 3s ease-in-out infinite; }
+<style>
+:root{
+  --bg:#f8fafc;
+  --dark:#0f172a;
+  --text:#334155;
+  --primary:#2563eb;
+  --border:#e5e7eb;
+}
 
-        /* Loader */
-        .typing-indicator span {
-            display: inline-block;
-            width: 8px;
-            height: 8px;
-            background-color: #fff;
-            border-radius: 50%;
-            animation: typing 1.4s infinite ease-in-out both;
-            margin: 0 2px;
-        }
-        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
-        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
-        @keyframes typing {
-            0%, 80%, 100% { transform: scale(0); }
-            40% { transform: scale(1); }
-        }
-    </style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{
+  background:var(--bg);
+  font-family:Inter,sans-serif;
+  color:var(--text);
+  line-height:1.6;
+}
+
+.container{
+  max-width:1100px;
+  margin:auto;
+  padding:80px 20px;
+}
+
+h1,h2,h3{color:var(--dark);}
+h1{font-size:40px;}
+h2{font-size:32px;margin-bottom:16px;}
+h3{font-size:20px;}
+
+p{margin-top:12px;}
+
+a{text-decoration:none;}
+
+.btn{
+  display:inline-block;
+  background:var(--primary);
+  color:#fff;
+  padding:14px 26px;
+  border-radius:8px;
+  font-weight:600;
+}
+
+.btn-outline{
+  background:#fff;
+  color:var(--primary);
+  border:1px solid var(--border);
+}
+
+.hero{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:40px;
+  align-items:center;
+}
+
+.card{
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:28px;
+}
+
+.grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:20px;
+}
+
+.cta-bar{
+  background:var(--dark);
+  color:#fff;
+  padding:50px 20px;
+  text-align:center;
+  border-radius:16px;
+}
+
+.cta-bar .btn{margin-top:20px;}
+
+.work-wrapper{
+  margin-top:32px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:20px;
+}
+
+.work-image{
+  width:100%;
+  border-radius:12px;
+}
+
+.work-note{
+  margin-top:12px;
+  font-size:14px;
+  color:#64748b;
+}
+
+.currency-toggle{
+  text-align:center;
+  margin-bottom:30px;
+}
+
+.currency-toggle button{
+  margin:0 8px;
+}
+
+footer{
+  text-align:center;
+  color:#64748b;
+  padding-bottom:40px;
+}
+
+@media(max-width:900px){
+  .hero,.grid{grid-template-columns:1fr;}
+  h1{font-size:32px;}
+}
+</style>
 </head>
-<body class="antialiased text-gray-800">
 
-    <nav class="bg-white/90 backdrop-blur-md border-b fixed w-full z-50 top-0">
-        <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between items-center h-16">
-                <div class="flex items-center gap-2">
-                    <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-                        <i class="fa-solid fa-feather-pointed"></i>
-                    </div>
-                    <span class="font-bold text-xl tracking-tight text-gray-900">GradeBoost</span>
-                </div>
-                
-                <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-500">
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-check-circle text-green-500"></i> Plagiarism Free</span>
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-bolt text-yellow-500"></i> Instant AI</span>
-                    <span class="flex items-center gap-1"><i class="fa-solid fa-lock text-gray-400"></i> No Login</span>
-                </div>
-            </div>
-        </div>
-    </nav>
+<body>
 
-    <main class="pt-24 pb-12 px-4">
-        
-        <div id="view-input" class="max-w-2xl mx-auto transition-all duration-500">
-            
-            <div class="text-center mb-10">
-                <span class="inline-block py-1 px-3 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold tracking-wide mb-3 animate-float">
-                    🚀 TRUSTED BY 10,000+ STUDENTS
-                </span>
-                <h1 class="text-4xl md:text-5xl font-extrabold text-gray-900 mb-4 tracking-tight">
-                    Assignments, <span class="text-indigo-600">Done in Seconds.</span>
-                </h1>
-                <p class="text-lg text-gray-600 max-w-lg mx-auto">
-                    Enter your topic and let our advanced AI write a perfectly structured, academic-grade assignment for you.
-                </p>
-            </div>
+<!-- HERO -->
+<section class="container hero">
+  <div>
+    <h1>Landing Pages & Social Media Designs for Small Businesses</h1>
+    <p>
+      DigMonk helps small businesses look professional online with clean landing pages
+      and ready-to-use social media designs that build trust and attract customers.
+    </p>
 
-            <div class="bg-white rounded-2xl shadow-xl border border-gray-100 overflow-hidden">
-                <div class="p-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div> <form id="generator-form" class="p-6 md:p-8 space-y-6">
-                    
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div class="space-y-2">
-                            <label class="text-sm font-semibold text-gray-700">Subject</label>
-                            <div class="relative">
-                                <i class="fa-solid fa-book absolute left-3 top-3.5 text-gray-400"></i>
-                                <select id="subject" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none appearance-none" required>
-                                    <option value="" disabled selected>Select Subject</option>
-                                    <option value="English Literature">English Literature</option>
-                                    <option value="History">History</option>
-                                    <option value="Business Management">Business / MBA</option>
-                                    <option value="Computer Science">Computer Science</option>
-                                    <option value="Psychology">Psychology</option>
-                                    <option value="Economics">Economics</option>
-                                    <option value="Sociology">Sociology</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-xs text-gray-400 pointer-events-none"></i>
-                            </div>
-                        </div>
+    <p><strong>Best for:</strong> local services, clinics, coaches, consultants, small brands</p>
 
-                        <div class="space-y-2">
-                            <label class="text-sm font-semibold text-gray-700">Academic Level</label>
-                            <div class="relative">
-                                <i class="fa-solid fa-graduation-cap absolute left-3 top-3.5 text-gray-400"></i>
-                                <select id="level" class="w-full pl-10 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none appearance-none">
-                                    <option value="High School">High School</option>
-                                    <option value="College (Undergrad)">College (Undergrad)</option>
-                                    <option value="University (Masters)">University (Masters)</option>
-                                </select>
-                                <i class="fa-solid fa-chevron-down absolute right-4 top-4 text-xs text-gray-400 pointer-events-none"></i>
-                            </div>
-                        </div>
-                    </div>
+    <a href="https://wa.me/917324896459" class="btn">
+      Get a landing page for your business
+    </a>
+    <a href="mailto:skjha5993@gmail.com" class="btn btn-outline">Email Us</a>
+  </div>
 
-                    <div class="space-y-2">
-                        <label class="text-sm font-semibold text-gray-700">Assignment Topic / Question</label>
-                        <div class="relative">
-                            <textarea id="topic" rows="3" class="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:bg-white transition-all outline-none resize-none" placeholder="e.g. The impact of Artificial Intelligence on job markets in 2030..." required minlength="10"></textarea>
-                            <div class="absolute bottom-3 right-3 text-xs text-gray-400">Min 10 chars</div>
-                        </div>
-                    </div>
+  <div class="card">
+    <h3>What You Get</h3>
+    <p>✔ One-page business landing page</p>
+    <p>✔ Social media flyers & post designs</p>
+    <p>✔ Clean, modern look</p>
+    <p>✔ Ready-to-use files</p>
+  </div>
+</section>
 
-                    <div class="flex items-center gap-4 bg-indigo-50/50 p-4 rounded-xl border border-indigo-100">
-                        <div class="flex-1">
-                            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Word Count</label>
-                            <select id="words" class="w-full bg-transparent font-semibold text-gray-800 outline-none mt-1 cursor-pointer">
-                                <option value="500">Short (~500 Words)</option>
-                                <option value="1000" selected>Standard (~1000 Words)</option>
-                                <option value="2000">Long (~2000 Words)</option>
-                            </select>
-                        </div>
-                        <div class="w-px h-8 bg-indigo-200"></div>
-                        <div class="flex-1">
-                            <label class="text-xs font-bold text-gray-500 uppercase tracking-wider">Style</label>
-                            <div class="font-semibold text-gray-800 mt-1">Academic Formal</div>
-                        </div>
-                    </div>
+<!-- PROBLEM -->
+<section class="container">
+  <h2>Why Many Small Businesses Struggle Online</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Unclear Website</h3>
+      <p>Visitors don’t understand what you offer quickly.</p>
+    </div>
+    <div class="card">
+      <h3>Weak Social Media</h3>
+      <p>Inconsistent posts reduce trust.</p>
+    </div>
+    <div class="card">
+      <h3>Poor First Impression</h3>
+      <p>Customers decide in seconds.</p>
+    </div>
+  </div>
+</section>
 
-                    <button type="submit" id="generate-btn" class="group w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg shadow-indigo-200 transition-all transform hover:-translate-y-1 active:scale-95 flex items-center justify-center gap-3">
-                        <span class="text-lg">Generate Assignment</span>
-                        <i class="fa-solid fa-wand-magic-sparkles group-hover:rotate-12 transition-transform"></i>
-                    </button>
+<!-- SERVICES -->
+<section class="container">
+  <h2>How DigMonk Helps</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>Landing Page Design</h3>
+      <p>Simple pages that clearly explain your service.</p>
+    </div>
+    <div class="card">
+      <h3>Social Media Flyers</h3>
+      <p>Designs for promotions and offers.</p>
+    </div>
+    <div class="card">
+      <h3>Post Designs</h3>
+      <p>Consistent visuals that build trust.</p>
+    </div>
+  </div>
+</section>
 
-                    <p class="text-center text-xs text-gray-400">
-                        <i class="fa-solid fa-lock"></i> No signup required. 100% Private.
-                    </p>
-                </form>
-            </div>
-        </div>
+<!-- PROCESS -->
+<section class="container">
+  <h2>How It Works</h2>
+  <div class="grid">
+    <div class="card">
+      <h3>1. Contact Us</h3>
+      <p>Tell us about your business.</p>
+    </div>
+    <div class="card">
+      <h3>2. We Design</h3>
+      <p>We create and share previews.</p>
+    </div>
+    <div class="card">
+      <h3>3. You Launch</h3>
+      <p>Use everything immediately.</p>
+    </div>
+  </div>
+</section>
 
-        <div id="view-loading" class="hidden fixed inset-0 bg-white/90 z-50 flex flex-col items-center justify-center">
-            <div class="w-24 h-24 bg-indigo-50 rounded-full flex items-center justify-center mb-6 relative">
-                <div class="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
-                <div class="absolute inset-0 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-                <i class="fa-solid fa-robot text-3xl text-indigo-600"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-gray-800 mb-2">Analyzing Topic...</h2>
-            <p id="loading-text" class="text-gray-500 animate-pulse">Consulting academic databases</p>
-        </div>
+<!-- WORK SNAPSHOTS -->
+<section class="container">
+  <h2>Sample Work</h2>
+  <p>
+    Examples of landing pages and social media designs we create for small businesses.
+  </p>
 
-        <div id="view-result" class="hidden max-w-4xl mx-auto">
-            
-            <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-                <button onclick="location.reload()" class="text-gray-500 hover:text-gray-800 font-medium text-sm flex items-center gap-2">
-                    <div class="w-8 h-8 rounded-full bg-white border flex items-center justify-center shadow-sm">
-                        <i class="fa-solid fa-arrow-left"></i>
-                    </div>
-                    Start Over
-                </button>
-                <div class="flex items-center gap-2 text-sm bg-green-100 text-green-700 px-3 py-1.5 rounded-full font-medium">
-                    <span class="relative flex h-2 w-2">
-                      <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                    </span>
-                    Assignment Ready
-                </div>
-            </div>
+  <div class="work-wrapper">
+    <img 
+      src="Img.png" 
+      alt="Landing page and social media design samples for small businesses by DigMonk"
+      class="work-image"
+      loading="lazy"
+    />
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                
-                <div class="lg:col-span-2">
-                    <div class="bg-white rounded-xl shadow-xl border border-gray-200 min-h-[600px] relative overflow-hidden">
-                        
-                        <div class="h-2 bg-gray-100 border-b flex items-center px-2 gap-1">
-                            <div class="w-2 h-2 rounded-full bg-red-400"></div>
-                            <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
-                            <div class="w-2 h-2 rounded-full bg-green-400"></div>
-                        </div>
+    <p style="margin-top:20px;">
+      Want something similar?
+      <a href="https://wa.me/917324896459" style="color:#2563eb;font-weight:600;">
+        Message us on WhatsApp
+      </a>
+    </p>
+  </div>
 
-                        <div class="p-8 md:p-12">
-                            <div id="document-content" class="prose-content blur-gradient select-none">
-                                </div>
-                        </div>
+  <p class="work-note">*Samples created for demonstration purposes.</p>
+</section>
 
-                        <div id="lock-screen" class="absolute inset-x-0 bottom-0 h-[400px] glass-lock flex flex-col justify-center items-center text-center p-6 z-10">
-                            
-                            <div class="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center mb-4 text-indigo-600">
-                                <i class="fa-solid fa-lock text-2xl"></i>
-                            </div>
+<!-- PRICING -->
+<section class="container">
+  <h2>Simple Pricing</h2>
 
-                            <h3 class="text-2xl font-bold text-gray-900 mb-2">Unlock Full Assignment</h3>
-                            <p class="text-gray-600 mb-6 max-w-sm mx-auto">
-                                Get instant access to the full content, conclusion, references, and downloadable files.
-                            </p>
+  <div class="currency-toggle">
+    <button id="usdBtn" class="btn">USD (USA)</button>
+    <button id="inrBtn" class="btn btn-outline">INR (India)</button>
+  </div>
 
-                            <div class="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 mb-6">
-                                <div class="text-left">
-                                    <div class="text-xs text-gray-500 uppercase font-bold">Total Price</div>
-                                    <div class="flex items-baseline gap-2">
-                                        <span class="text-2xl font-bold text-gray-900">₹49</span>
-                                        <span class="text-sm text-gray-400 line-through">₹199</span>
-                                    </div>
-                                </div>
-                                <div class="h-8 w-px bg-gray-200"></div>
-                                <div class="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded">
-                                    75% OFF TODAY
-                                </div>
-                            </div>
+  <div class="grid">
+    <div class="card">
+      <h3>Starter</h3>
+      <p>Landing page OR 5 social media designs</p>
+      <p class="price" data-usd="$99" data-inr="₹2,999"><strong>$99</strong></p>
+    </div>
 
-                            <button onclick="startPayment()" class="w-full max-w-xs bg-black text-white hover:bg-gray-800 font-bold py-3.5 rounded-xl shadow-lg transition-all transform hover:-translate-y-1 flex justify-center items-center gap-3">
-                                <span>Unlock Now</span>
-                                <i class="fa-solid fa-arrow-right"></i>
-                            </button>
-                            
-                            <div class="mt-4 flex items-center justify-center gap-4 opacity-60 grayscale hover:grayscale-0 transition-all">
-                                <img src="https://upload.wikimedia.org/wikipedia/commons/8/89/Razorpay_logo.svg" alt="Razorpay" class="h-5">
-                                <span class="text-xs text-gray-500 border-l pl-4">100% Secure Payment</span>
-                            </div>
-                        </div>
+    <div class="card">
+      <h3>Business</h3>
+      <p>Landing page + 10 social media designs</p>
+      <p class="price" data-usd="$199" data-inr="₹5,999"><strong>$199</strong></p>
+    </div>
 
-                    </div>
-                </div>
+    <div class="card">
+      <h3>Growth</h3>
+      <p>Landing page + 20 social media designs</p>
+      <p class="price" data-usd="$349" data-inr="₹9,999"><strong>$349</strong></p>
+    </div>
+  </div>
 
-                <div class="lg:col-span-1">
-                    <div class="bg-white rounded-xl shadow-sm border border-gray-200 p-6 sticky top-24">
-                        <h3 class="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                            <i class="fa-solid fa-download text-indigo-600"></i> Downloads
-                        </h3>
-                        
-                        <div id="download-zone-locked">
-                            <div class="space-y-3 opacity-50 pointer-events-none">
-                                <button class="w-full border border-gray-200 rounded-lg p-3 flex items-center justify-between bg-gray-50">
-                                    <div class="flex items-center gap-3">
-                                        <i class="fa-regular fa-file-pdf text-red-500 text-lg"></i>
-                                        <span class="text-sm font-medium">Download PDF</span>
-                                    </div>
-                                    <i class="fa-solid fa-lock text-xs text-gray-400"></i>
-                                </button>
-                                <button class="w-full border border-gray-200 rounded-lg p-3 flex items-center justify-between bg-gray-50">
-                                    <div class="flex items-center gap-3">
-                                        <i class="fa-regular fa-file-word text-blue-500 text-lg"></i>
-                                        <span class="text-sm font-medium">Download Word</span>
-                                    </div>
-                                    <i class="fa-solid fa-lock text-xs text-gray-400"></i>
-                                </button>
-                            </div>
-                            <p class="text-xs text-gray-400 mt-3 text-center">Downloads enable after payment</p>
-                        </div>
+  <p style="text-align:center;color:#64748b;margin-top:20px;">
+    Prices shown based on selected currency. Services remain the same for all clients.
+  </p>
+</section>
 
-                        <div id="download-zone-unlocked" class="hidden space-y-3 animate-pulse">
-                            <button onclick="downloadPDF()" class="w-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg p-3 flex items-center justify-between transition-colors">
-                                <div class="flex items-center gap-3">
-                                    <i class="fa-regular fa-file-pdf text-xl"></i>
-                                    <span class="font-medium">Download PDF</span>
-                                </div>
-                                <i class="fa-solid fa-download"></i>
-                            </button>
-                            <button onclick="downloadDoc()" class="w-full bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg p-3 flex items-center justify-between transition-colors">
-                                <div class="flex items-center gap-3">
-                                    <i class="fa-regular fa-file-word text-xl"></i>
-                                    <span class="font-medium">Download Word</span>
-                                </div>
-                                <i class="fa-solid fa-download"></i>
-                            </button>
-                            
-                            <div class="mt-6 bg-green-50 p-3 rounded-lg border border-green-100 text-center">
-                                <i class="fa-solid fa-circle-check text-green-500 text-2xl mb-1"></i>
-                                <p class="text-sm font-bold text-green-800">Payment Successful</p>
-                                <p class="text-xs text-green-600">Your content is fully unlocked.</p>
-                            </div>
-                        </div>
+<!-- CTA -->
+<section class="container">
+  <div class="cta-bar">
+    <h2>Ready to Make Your Business Look Professional?</h2>
+    <p>Message DigMonk today and we’ll handle the design.</p>
 
-                    </div>
+    <a href="https://wa.me/917324896459" class="btn">Message on WhatsApp</a>
+    <br><br>
+    <a href="mailto:skjha5993@gmail.com" class="btn btn-outline">Email Us</a>
+  </div>
+</section>
 
-                    <div class="mt-6 bg-indigo-900 rounded-xl p-6 text-white text-center">
-                        <div class="text-3xl font-bold mb-1">4.9/5</div>
-                        <div class="flex justify-center gap-1 text-yellow-400 text-xs mb-3">
-                            <i class="fa-solid fa-star"></i><i class="fa-solid fa-star"></i><i
+<footer class="container">
+  © 2025 <strong>DigMonk</strong>. Helping small businesses look professional online.
+</footer>
+
+<!-- CURRENCY SWITCH -->
+<script>
+const usdBtn = document.getElementById("usdBtn");
+const inrBtn = document.getElementById("inrBtn");
+const prices = document.querySelectorAll(".price");
+
+usdBtn.onclick = () => {
+  prices.forEach(p => p.innerHTML = `<strong>${p.dataset.usd}</strong>`);
+  usdBtn.classList.remove("btn-outline");
+  inrBtn.classList.add("btn-outline");
+};
+
+inrBtn.onclick = () => {
+  prices.forEach(p => p.innerHTML = `<strong>${p.dataset.inr}</strong>`);
+  inrBtn.classList.remove("btn-outline");
+  usdBtn.classList.add("btn-outline");
+};
+</script>
+
+<!-- SCHEMA -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": "DigMonk",
+  "email": "skjha5993@gmail.com",
+  "contactPoint": {
+    "@type": "ContactPoint",
+    "telephone": "+91-7324896459",
+    "contactType": "customer service"
+  }
+}
+</script>
+
+</body>
+</html>
